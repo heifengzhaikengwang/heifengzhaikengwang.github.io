@@ -2,68 +2,67 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>SWF直连加载方案</title>
+    <title>SWF加载保障方案</title>
+    <!-- 强制预加载核心资源 -->
+    <link rel="preload" href="https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/ruffle.js" as="script">
     <style>
-        body {
-            margin: 0;
-            background: #f0f0f0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        /* 添加加载动画 */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20% auto;
         }
-        #player-container {
-            width: 800px;
-            height: 600px;
-            background: white;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <div id="player-container"></div>
+    <div id="loader" class="loader"></div>
+    <div id="player-container" style="display:none;"></div>
 
-    <!-- 锁定Ruffle核心版本 -->
+    <!-- 锁定Ruffle版本 -->
     <script src="https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/ruffle.js"></script>
 
     <script>
-        // 强制配置SWF绝对路径
-        const SWF_ABSOLUTE_URL = 'https://heifengzhaikengwang.github.io/game.swf';
+        const SWF_PATH = '/game.swf'; // GitHub Pages根目录路径
 
-        async function loadSWF() {
+        async function init() {
             try {
                 // 阶段1：验证Ruffle加载
-                if (!window.RufflePlayer) {
-                    throw new Error("Ruffle核心加载失败");
+                if (!window.RufflePlayer?.newest) {
+                    throw new Error("Ruffle核心未加载");
                 }
 
-                // 阶段2：创建播放器实例
+                // 阶段2：验证SWF可达性
+                const swfTest = await fetch(SWF_PATH);
+                if (!swfTest.ok) {
+                    throw new Error(`SWF文件不可用 (HTTP ${swfTest.status})`);
+                }
+
+                // 阶段3：初始化播放器
                 const player = window.RufflePlayer.newest().createPlayer();
                 document.getElementById("player-container").appendChild(player);
+                await player.load({ url: SWF_PATH });
 
-                // 阶段3：强制使用绝对路径加载
-                await player.load({
-                    url: SWF_ABSOLUTE_URL,
-                    allowScriptAccess: true,
-                    parameters: {
-                        quality: "best",
-                        scale: "exactFit",
-                        wmode: "direct"
-                    }
-                });
-
-                console.log('SWF加载指令已发送');
+                // 隐藏加载动画
+                document.getElementById("loader").style.display = "none";
+                document.getElementById("player-container").style.display = "block";
 
             } catch (error) {
-                console.error('致命错误:', error);
-                alert(`加载失败：${error.message}\n完整路径：${SWF_ABSOLUTE_URL}`);
+                console.error("[致命错误]", error);
+                document.getElementById("loader").style.display = "none";
+                alert(`加载失败：${error.message}\n访问 ${SWF_PATH} 验证文件`);
             }
         }
 
-        // 添加容错加载机制
-        window.addEventListener('DOMContentLoaded', () => {
-            setTimeout(loadSWF, 500); // 添加延迟确保Ruffle初始化
-        });
+        // 启动初始化
+        window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
 </html>
