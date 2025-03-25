@@ -2,47 +2,52 @@
 <html>
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SWF Player</title>
     <style>
         body {
+            margin: 0;
+            padding: 10px;
+            background: #000;
             display: flex;
             justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0;
+            min-height: 100vh;
         }
         #ruffle-container {
-            width: 800px;
-            height: 600px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 800px;
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            overflow: hidden;
         }
     </style>
 </head>
 <body>
     <div id="ruffle-container"></div>
 
-    <!-- 引入Ruffle -->
+    <!-- 使用Ruffle官方CDN -->
     <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
     <script>
-        window.RufflePlayer = window.RufflePlayer || {};
-        window.RufflePlayer.config = {
-            "publicPath": "https://unpkg.com/@ruffle-rs/ruffle/",
-            "warnOnUnsupportedContent": false,
-            "autoplay": "on",
-            "scale": "fit",
+        window.RufflePlayer = {
+            config: {
+                publicPath: "https://unpkg.com/@ruffle-rs/ruffle/",
+                autoplay: "on",
+                scale: "showAll",
+                backgroundColor: "#000000",
+                warnOnUnsupportedContent: false,
+            }
         };
 
-        const ruffle = window.RufflePlayer.newest();
         const container = document.getElementById("ruffle-container");
-        const player = container.appendChild(ruffle.createPlayer());
-        
-        // 替换为你的SWF文件地址
-        const swfUrl = "https://heifengzhalkengwang.github.io/game.swf";
-        
-        player.load(swfUrl).catch(error => {
-            console.error("Error loading SWF:", error);
-        });
+        const player = window.RufflePlayer.newest().createPlayer();
+        container.appendChild(player);
+
+        // 修正后的SWF路径
+        player.load("https://heifengzhaikengwang.github.io/game.swf")
+            .catch(error => {
+                console.error("加载失败:", error);
+                alert("SWF文件加载失败，请检查控制台日志");
+            });
     </script>
 </body>
 </html>
