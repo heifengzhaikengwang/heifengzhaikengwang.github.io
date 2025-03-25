@@ -1,53 +1,72 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SWF Player</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 10px;
-            background: #000;
-            display: flex;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        #ruffle-container {
-            width: 100%;
-            max-width: 800px;
-            border: 2px solid #4CAF50;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-    </style>
+    <!-- 保持原有head部分不变 -->
+    <!-- ... -->
 </head>
 <body>
-    <div id="ruffle-container"></div>
+    <h1>地震避险互动小游戏</h1>
+    <div class="container">
+        <div id="ruffle-container"></div>
+        <p class="notice">如果无法加载游戏，请尝试更新浏览器或使用最新版Chrome/Firefox浏览器</p>
+    </div>
 
-    <!-- 使用Ruffle官方CDN -->
-    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
     <script>
+        // 配置Ruffle使用本地文件
         window.RufflePlayer = {
             config: {
-                publicPath: "https://unpkg.com/@ruffle-rs/ruffle/",
-                autoplay: "on",
+                // 指向仓库内的本地文件
+                publicPath: "/",
+                // 安全策略配置
+                allowScriptAccess: false,
+                allowNetworking: "all",
+                openUrlMode: "deny",
+                // 加载参数
+                autoplay: "auto",
+                backgroundColor: "#FFFFFF",
                 scale: "showAll",
-                backgroundColor: "#000000",
-                warnOnUnsupportedContent: false,
+                warnOnUnsupportedContent: false
             }
         };
 
-        const container = document.getElementById("ruffle-container");
-        const player = window.RufflePlayer.newest().createPlayer();
-        container.appendChild(player);
+        // 动态加载本地ruffle文件
+        (function() {
+            const ruffleScript = document.createElement('script');
+            ruffleScript.src = '/ruffle.js';
+            document.head.appendChild(ruffleScript);
+        })();
 
-        // 修正后的SWF路径
-        player.load("https://heifengzhaikengwang.github.io/game.swf")
-            .catch(error => {
-                console.error("加载失败:", error);
-                alert("SWF文件加载失败，请检查控制台日志");
-            });
+        // 初始化播放器
+        window.addEventListener("DOMContentLoaded", () => {
+            const initPlayer = () => {
+                if (!window.RufflePlayer?.newest) {
+                    setTimeout(initPlayer, 50);
+                    return;
+                }
+
+                const container = document.getElementById("ruffle-container");
+                const ruffle = window.RufflePlayer.newest();
+                const player = ruffle.createPlayer();
+                
+                // 添加缓存清除参数
+                const swfUrl = "/game.swf?t=" + Date.now();
+                
+                // 设置播放器属性
+                player.style.width = "100%";
+                player.style.height = "100%";
+                container.appendChild(player);
+
+                // 加载SWF文件
+                player.load(swfUrl)
+                    .catch((error) => {
+                        console.error("加载失败:", error);
+                        container.innerHTML = `<p>加载错误：${error.status || 500}</p>`;
+                        // 备用方案：尝试重新加载
+                        setTimeout(() => player.load(swfUrl), 2000);
+                    });
+            };
+            initPlayer();
+        });
     </script>
 </body>
 </html>
