@@ -1,117 +1,47 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地震避险小游戏</title>
-    <!-- 国内CDN加速 -->
-    <script src="https://cdn.bootcdn.net/ajax/libs/ruffle/2024.1.0/ruffle.js"></script>
+    <meta charset="utf-8">
+    <title>SWF Player</title>
     <style>
-        /* 原有样式保持不变 */
-        /* 新增加载动画样式 */
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
         }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .status-text {
-            text-align: center;
-            color: #666;
-            margin: 10px 0;
+        #ruffle-container {
+            width: 800px;
+            height: 600px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
         }
     </style>
 </head>
 <body>
-    <h1>地震避险互动小游戏</h1>
-    <div class="container">
-        <div id="ruffle-container">
-            <div class="loader"></div>
-            <p class="status-text">正在加载游戏资源...</p>
-        </div>
-        <p class="notice">如果无法加载游戏，请尝试更新浏览器或使用最新版Chrome/Firefox浏览器</p>
-    </div>
+    <div id="ruffle-container"></div>
 
+    <!-- 引入Ruffle -->
+    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
     <script>
-        // 配置多个备用资源路径
-        const SWF_SOURCES = [
-            "https://cdn.jsdelivr.net/gh/你的账户/你的仓库@latest/game.swf", // jsDelivr加速
-            "/game.swf" // 原始路径
-        ];
-
-        async function loadGame() {
-            const container = document.getElementById("ruffle-container");
-            const statusText = container.querySelector('.status-text');
-            
-            try {
-                // 优先使用本地配置的Ruffle
-                const ruffle = window.RufflePlayer.newest();
-                const player = container.appendChild(ruffle.createPlayer());
-                
-                // 配置播放器参数
-                player.config = {
-                    autoplay: 'auto',
-                    preloader: true,
-                    bufferTime: 5,
-                    backgroundColor: '#FFFFFF'
-                };
-
-                // 尝试从多个源加载
-                for (const source of SWF_SOURCES) {
-                    try {
-                        statusText.textContent = `正在加载: ${new URL(source).hostname}`;
-                        await player.load(source);
-                        // 加载成功后移除加载动画
-                        container.querySelector('.loader').remove();
-                        statusText.remove();
-                        return; // 加载成功则退出
-                    } catch (error) {
-                        console.warn(`从 ${source} 加载失败:`, error);
-                    }
-                }
-                
-                throw new Error("所有资源加载失败");
-
-            } catch (error) {
-                console.error("最终加载失败:", error);
-                container.innerHTML = `
-                    <p style="color: red; text-align: center">游戏加载失败，请尝试：</p>
-                    <ul style="margin: 10px auto; max-width: 300px">
-                        <li>检查网络连接</li>
-                        <li><button onclick="location.reload()">点击重试</button></li>
-                        <li><a href="${SWF_SOURCES[0]}" download>下载游戏本地运行</a></li>
-                    </ul>
-                `;
-            }
-        }
-
-        // 延迟加载确保Ruffle初始化完成
         window.RufflePlayer = window.RufflePlayer || {};
         window.RufflePlayer.config = {
-            publicPath: "https://cdn.bootcdn.net/ajax/libs/ruffle/2024.1.0/",
-            polyfills: true,
+            "publicPath": "https://unpkg.com/@ruffle-rs/ruffle/",
+            "warnOnUnsupportedContent": false,
+            "autoplay": "on",
+            "scale": "fit",
         };
 
-        // 页面主要资源加载完成后启动游戏加载
-        window.addEventListener('DOMContentLoaded', () => {
-            // 预加载SWF文件
-            const preloadLink = document.createElement('link');
-            preloadLink.rel = "preload";
-            preloadLink.as = "fetch";
-            preloadLink.href = SWF_SOURCES[0];
-            document.head.appendChild(preloadLink);
-
-            // 启动加载
-            setTimeout(loadGame, 100); // 确保Ruffle完全初始化
+        const ruffle = window.RufflePlayer.newest();
+        const container = document.getElementById("ruffle-container");
+        const player = container.appendChild(ruffle.createPlayer());
+        
+        // 替换为你的SWF文件地址
+        const swfUrl = "https://heifengzhalkengwang.github.io/game.swf";
+        
+        player.load(swfUrl).catch(error => {
+            console.error("Error loading SWF:", error);
         });
     </script>
 </body>
