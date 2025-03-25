@@ -8,17 +8,19 @@
         body {
             margin: 0;
             padding: 0;
-            height: 100vh;
+            min-height: 100vh;
             background-color: #f0f0f0;
             display: flex;
             justify-content: center;
             align-items: center;
         }
         #player-container {
-            width: 800px;
+            width: 90vw;
+            max-width: 800px;
             height: 600px;
             background-color: white;
             box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            position: relative;
         }
         .instruction {
             position: absolute;
@@ -29,6 +31,9 @@
             font-family: Arial, sans-serif;
             font-size: 16px;
             z-index: 100;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 20px;
+            border-radius: 5px;
         }
     </style>
 </head>
@@ -37,14 +42,35 @@
     <div id="player-container"></div>
 
     <script>
-        // 内联 Ruffle 播放器（建议使用 CDN 以减少文件体积）
-        // 注意：由于 Ruffle 体积较大，此处使用 CDN 版本，如需完全内联请访问 https://ruffle.rs/
+        // 最新 Ruffle 播放器 CDN（自动加载最新稳定版）
         const ruffleScript = document.createElement('script');
-        ruffleScript.src = 'https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@0.1.0/dist/ruffle.min.js';
-        ruffleScript.onload = function() {
-            const player = ruffle.createPlayer();
-            player.load('game.swf');
-            player.mount(document.getElementById('player-container'));
+        ruffleScript.src = 'https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@latest/dist/ruffle.min.js';
+        ruffleScript.onload = async function() {
+            try {
+                const player = await window.rufflePlayer.create();
+                player.load('game.swf');
+                player.mount(document.getElementById('player-container'));
+                
+                // 加载完成后显示提示
+                player.on('ready', () => {
+                    const instruction = document.querySelector('.instruction');
+                    instruction.style.opacity = '0';
+                    setTimeout(() => instruction.remove(), 1000);
+                });
+            } catch (error) {
+                console.error('Ruffle 加载失败:', error);
+                // 备用方案：显示 Flash 插件提示
+                const fallbackHTML = `
+                    <embed 
+                        src="game.swf" 
+                        type="application/x-shockwave-flash" 
+                        width="100%" 
+                        height="100%"
+                        pluginspage="https://www.macromedia.com/go/getflashplayer"
+                    >
+                `;
+                document.getElementById('player-container').innerHTML = fallbackHTML;
+            }
         };
         document.head.appendChild(ruffleScript);
     </script>
