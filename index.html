@@ -1,47 +1,52 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <meta charset="utf-8">
-    <title>SWF终极加载方案</title>
-    <!-- 强制预加载SWF -->
-    <link rel="preload" href="/game.swf" as="fetch" crossorigin="anonymous">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地震避险小游戏</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            background-color: #f0f0f0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        #player-container {
+            width: 800px;
+            height: 600px;
+            background-color: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+        .instruction {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #333;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            z-index: 100;
+        }
+    </style>
 </head>
 <body>
-    <div id="player" style="width:100%;height:100vh"></div>
-
-    <!-- 使用稳定版Ruffle -->
-    <script src="https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/ruffle.js"></script>
+    <div class="instruction">使用方向键控制角色躲避地震灾害</div>
+    <div id="player-container"></div>
 
     <script>
-        // 绝对路径加载保障
-        const SWF_URL = 'https://heifengzhaikengwang.github.io/game.swf';
-
-        async function init() {
-            try {
-                // 阶段1：Ruffle完整性检查
-                if (!window.RufflePlayer?.newest) {
-                    throw new Error("Ruffle核心未加载");
-                }
-
-                // 阶段2：SWF可达性验证
-                const swfTest = await fetch(SWF_URL);
-                if (!swfTest.ok) throw new Error(`SWF不可达 (HTTP ${swfTest.status})`);
-
-                // 阶段3：创建播放器
-                const player = window.RufflePlayer.newest().createPlayer();
-                document.getElementById("player").appendChild(player);
-                
-                // 阶段4：强制内存加载
-                const swfData = await swfTest.arrayBuffer();
-                await player.load({ data: swfData });
-
-            } catch (error) {
-                console.error("[致命错误]", error);
-                alert(`加载失败：${error.message}\n访问 ${SWF_URL} 验证文件`);
-            }
-        }
-
-        window.addEventListener('DOMContentLoaded', init);
+        // 内联 Ruffle 播放器（建议使用 CDN 以减少文件体积）
+        // 注意：由于 Ruffle 体积较大，此处使用 CDN 版本，如需完全内联请访问 https://ruffle.rs/
+        const ruffleScript = document.createElement('script');
+        ruffleScript.src = 'https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@0.1.0/dist/ruffle.min.js';
+        ruffleScript.onload = function() {
+            const player = ruffle.createPlayer();
+            player.load('game.swf');
+            player.mount(document.getElementById('player-container'));
+        };
+        document.head.appendChild(ruffleScript);
     </script>
 </body>
 </html>
