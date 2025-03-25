@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SWF Player</title>
+    <!-- 引入 Ruffle -->
+    <script src="ruffle.js"></script>
+</head>
+<body>
+    <h1>我的 SWF 播放器</h1>
+    <!-- 嵌入 SWF -->
+    <div id="swf-container"></div>
+    <script>
+        // 动态加载 SWF
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.RufflePlayer.config = {
+            width: 800,
+            height: 600,
+            autoplay: "on",
+        };
+        const player = RufflePlayer.newest();
+        const swf = player.createPlayer();
+        document.getElementById("swf-container").appendChild(swf);
+        swf.load("game.swf");
+    </script>
+</body>
+</html>
