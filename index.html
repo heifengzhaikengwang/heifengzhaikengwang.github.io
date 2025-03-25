@@ -3,46 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <title>经典小游戏 - heifengzhaikengwang</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        /* 原有样式保持不变 */
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        #game-container {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px 0;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+        .loading {
+            color: #666;
+            font-size: 18px;
+            padding: 20px;
+        }
+        .error {
+            color: #d00;
+            font-size: 16px;
+            padding: 20px;
+        }
     </style>
 </head>
 <body>
     <h1>经典小游戏合集</h1>
     <div id="game-container">
         <div id="ruffle-target"></div>
+        <div id="loading" class="loading">正在加载游戏引擎...</div>
+        <div id="error" class="error" style="display:none;"></div>
     </div>
 
-    <!-- 关键修改：配置publicPath -->
+    <!-- 使用CDN托管Ruffle核心文件 -->
+    <script src="https://unpkg.com/@ruffle-rs/ruffle@latest/dist/ruffle.js"></script>
+    
     <script>
+        // 初始化配置
         window.RufflePlayer = window.RufflePlayer || {};
         window.RufflePlayer.config = {
-            // 设置公共路径（根据你的仓库地址）
-            publicPath: "/",
-            // 强制指定polyfills地址
+            publicPath: "https://unpkg.com/@ruffle-rs/ruffle@latest/dist/",
+            autoplay: "auto",
+            logLevel: "warn",
             polyfills: true,
+            // 强制指定CDN路径
+            wasmUrl: "https://unpkg.com/@ruffle-rs/ruffle@latest/dist/ruffle.wasm",
+            swfUrl: "/game.swf" // 游戏文件仍托管在GitHub
         };
-    </script>
-    <script src="ruffle.js"></script>
-    <script>
-        window.addEventListener("DOMContentLoaded", () => {
-            const ruffle = window.RufflePlayer.newest();
-            const player = ruffle.createPlayer();
-            const container = document.getElementById("ruffle-target");
-            container.appendChild(player);
 
-            // 新增MIME类型检测
-            if (!WebAssembly.instantiate) {
-                alert("当前浏览器不支持WebAssembly，请使用现代浏览器访问");
-                return;
+        // 加载状态管理
+        let retryCount = 0;
+        const MAX_RETRY = 3;
+
+        function showError(message) {
+            const errorDiv = document.getElementById("error");
+            errorDiv.textContent = message;
+            errorDiv.style.display = "block";
+            document.getElementById("loading").style.display = "none";
+        }
+
+        function initRuffle() {
+            try {
+                const ruffle = window.RufflePlayer.newest();
+                const player = ruffle.createPlayer();
+                const container = document.getElementById("ruffle-target");
+                
+                container.innerHTML = "";
+                container.appendChild(player);
+
+                player.load(window.RufflePlayer.config.swfUrl)
+                    .then(() => {
+                        document.getElementById("loading").style.display = "none";
+                    })
+                    .catch(err => {
+                        if (retryCount < MAX_RETRY) {
+                            retryCount++;
+                            setTimeout(initRuffle, 2000);
+                        } else {
+                            showError(`游戏加载失败: ${err.message}`);
+                        }
+                    });
+            } catch (e) {
+                showError(`Ruffle初始化失败: ${e.message}`);
             }
+        }
 
-            // 修改加载方式（使用绝对路径）
-            player.load("/game.swf").catch((error) => {
-                console.error("加载错误详情:", error);
-                alert(`游戏加载失败: ${error}`);
-            });
-        });
+        // 延迟加载确保CDN资源就绪
+        setTimeout(() => {
+            if (window.RufflePlayer) {
+                initRuffle();
+            } else {
+                showError("Ruffle核心库加载失败，请刷新页面");
+            }
+        }, 1000);
     </script>
 </body>
 </html>
