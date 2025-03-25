@@ -2,66 +2,45 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>SWF加载保障方案</title>
-    <!-- 强制预加载核心资源 -->
-    <link rel="preload" href="https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/ruffle.js" as="script">
-    <style>
-        /* 添加加载动画 */
-        .loader {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid #3498db;
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 20% auto;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+    <title>SWF终极加载方案</title>
+    <!-- 强制预加载SWF -->
+    <link rel="preload" href="/game.swf" as="fetch" crossorigin="anonymous">
 </head>
 <body>
-    <div id="loader" class="loader"></div>
-    <div id="player-container" style="display:none;"></div>
+    <div id="player" style="width:100%;height:100vh"></div>
 
-    <!-- 锁定Ruffle版本 -->
+    <!-- 使用稳定版Ruffle -->
     <script src="https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/ruffle.js"></script>
 
     <script>
-        const SWF_PATH = '/game.swf'; // GitHub Pages根目录路径
+        // 绝对路径加载保障
+        const SWF_URL = 'https://heifengzhaikengwang.github.io/game.swf';
 
         async function init() {
             try {
-                // 阶段1：验证Ruffle加载
+                // 阶段1：Ruffle完整性检查
                 if (!window.RufflePlayer?.newest) {
                     throw new Error("Ruffle核心未加载");
                 }
 
-                // 阶段2：验证SWF可达性
-                const swfTest = await fetch(SWF_PATH);
-                if (!swfTest.ok) {
-                    throw new Error(`SWF文件不可用 (HTTP ${swfTest.status})`);
-                }
+                // 阶段2：SWF可达性验证
+                const swfTest = await fetch(SWF_URL);
+                if (!swfTest.ok) throw new Error(`SWF不可达 (HTTP ${swfTest.status})`);
 
-                // 阶段3：初始化播放器
+                // 阶段3：创建播放器
                 const player = window.RufflePlayer.newest().createPlayer();
-                document.getElementById("player-container").appendChild(player);
-                await player.load({ url: SWF_PATH });
-
-                // 隐藏加载动画
-                document.getElementById("loader").style.display = "none";
-                document.getElementById("player-container").style.display = "block";
+                document.getElementById("player").appendChild(player);
+                
+                // 阶段4：强制内存加载
+                const swfData = await swfTest.arrayBuffer();
+                await player.load({ data: swfData });
 
             } catch (error) {
                 console.error("[致命错误]", error);
-                document.getElementById("loader").style.display = "none";
-                alert(`加载失败：${error.message}\n访问 ${SWF_PATH} 验证文件`);
+                alert(`加载失败：${error.message}\n访问 ${SWF_URL} 验证文件`);
             }
         }
 
-        // 启动初始化
         window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
