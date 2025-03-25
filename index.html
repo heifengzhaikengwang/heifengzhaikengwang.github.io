@@ -1,179 +1,120 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>经典游戏存档 - 黑风寨坑王</title>
+    <meta charset="utf-8">
+    <title>SWF深度调试 - 黑风寨坑王</title>
     <style>
-        :root {
-            --main-bg: #1a1a2e;
-            --player-bg: #16213e;
-            --accent-color: #e94560;
+        /* 增强调试面板样式 */
+        #debug-panel {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: #00ff00;
+            padding: 15px;
+            font-family: monospace;
+            z-index: 9999;
+            max-width: 400px;
         }
-        body {
-            margin: 0;
-            background: var(--main-bg);
-            color: #fff;
-            font-family: "Microsoft Yahei", sans-serif;
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .header {
-            text-align: center;
-            padding: 2rem 0;
-            border-bottom: 2px solid var(--accent-color);
-            width: 100%;
-        }
-        #ruffle-container {
-            width: 90%;
-            max-width: 1200px;
-            height: 75vh;
-            min-height: 600px;
-            margin: 2rem auto;
-            background: var(--player-bg);
-            border-radius: 15px;
-            box-shadow: 0 0 30px rgba(0,0,0,0.5);
-            position: relative;
-        }
-        .loading-screen {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-        }
-        .loader {
-            border: 6px solid #f3f3f3;
-            border-top: 6px solid var(--accent-color);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1.5s linear infinite;
-            margin: 0 auto 1rem;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        .status-text {
-            font-size: 1.2rem;
-            color: #8f8f8f;
-        }
-        .error-alert {
-            display: none;
-            background: #ff3860;
-            color: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin: 2rem;
-            max-width: 600px;
-        }
-        footer {
-            margin-top: auto;
-            padding: 1rem;
-            color: #6b6b6b;
+        .debug-item {
+            margin: 5px 0;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>🕹️ 黑风寨游戏大厅</h1>
-        <p>当前运行：game.swf</p>
+    <div id="ruffle-container" style="width:100%;height:100vh"></div>
+    <div id="debug-panel">
+        <div class="debug-item" id="debug-1">[1/6] 初始化环境...</div>
+        <div class="debug-item" id="debug-2">[2/6] Ruffle加载状态：待验证</div>
+        <div class="debug-item" id="debug-3">[3/6] SWF头校验：未开始</div>
+        <div class="debug-item" id="debug-4">[4/6] 内存验证：未开始</div>
+        <div class="debug-item" id="debug-5">[5/6] 兼容性检测：未开始</div>
+        <div class="debug-item" id="debug-6">[6/6] 最终加载：未开始</div>
     </div>
 
-    <div id="ruffle-container">
-        <div class="loading-screen">
-            <div class="loader"></div>
-            <p class="status-text" id="load-status">正在初始化播放器...</p>
-        </div>
-    </div>
-
-    <div class="error-alert" id="error-box">
-        <h3>⚠ 加载错误</h3>
-        <p id="error-message"></p>
-        <p>技术支持：请确保已正确部署以下文件：</p>
-        <ul>
-            <li>https://heifengzhaikengwang.github.io/game.swf</li>
-            <li>https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/ruffle.js</li>
-        </ul>
-    </div>
-
-    <footer>
-        Powered by Ruffle • 托管于 GitHub Pages
-    </footer>
-
-    <!-- 使用固定版本的Ruffle播放器 -->
+    <!-- 锁定Ruffle版本 -->
+    <script>
+        window.RufflePlayer = {
+            config: {
+                publicPath: "https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/",
+                polyfills: true,
+                allowScriptAccess: true,
+                compatibilityReport: true,
+            }
+        };
+    </script>
     <script src="https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/ruffle.js"></script>
 
     <script>
-        // 配置加载阶段提示
-        const statusText = document.getElementById('load-status');
-        const errorBox = document.getElementById('error-box');
-        const errorMessage = document.getElementById('error-message');
+        (async () => {
+            const debug = (step, message) => {
+                document.getElementById(`debug-${step}`).innerHTML = 
+                    `[${step}/6] ${message} <small>${new Date().toLocaleTimeString()}</small>`;
+            };
 
-        // 分阶段加载控制
-        async function initializePlayer() {
             try {
-                // 阶段1：等待Ruffle加载
-                statusText.textContent = "正在加载Ruffle核心...";
-                if (!window.RufflePlayer) {
-                    await new Promise(resolve => {
-                        const checkInterval = setInterval(() => {
-                            if (window.RufflePlayer) {
-                                clearInterval(checkInterval);
-                                resolve();
-                            }
-                        }, 100);
-                    });
-                }
+                // 阶段1：环境验证
+                debug(1, "检测运行时环境...");
+                const isSecure = window.location.protocol === 'https:';
+                debug(1, `运行协议：${window.location.protocol} ${isSecure ? '✓' : '⚠️'}`);
 
-                // 阶段2：配置播放器
-                statusText.textContent = "正在初始化配置...";
-                window.RufflePlayer.config = {
-                    autoplay: "on",
-                    unmuteOverlay: "hidden",
-                    backgroundColor: "#000000",
-                    letterbox: "fullscreen",
-                    openInNewTab: false,
-                };
-
-                // 阶段3：创建播放器实例
-                statusText.textContent = "正在创建播放器...";
-                const ruffle = window.RufflePlayer.newest();
-                const player = ruffle.createPlayer();
-                document.getElementById("ruffle-container").appendChild(player);
-
-                // 阶段4：加载SWF文件
-                statusText.textContent = "正在加载游戏文件...";
-                await player.load({
-                    url: "game.swf",
-                    allowScriptAccess: true,
-                    parameters: {
-                        quality: "best",
-                        scale: "exactFit",
-                        wmode: "direct"
-                    }
+                // 阶段2：Ruffle完整性检查
+                debug(2, "加载Ruffle核心...");
+                await new Promise(resolve => {
+                    const check = () => {
+                        if (window.RufflePlayer?.newest) {
+                            debug(2, "Ruffle加载完成 ✓");
+                            resolve();
+                        } else {
+                            setTimeout(check, 100);
+                        }
+                    };
+                    check();
                 });
 
-                // 隐藏加载界面
-                document.querySelector('.loading-screen').style.display = 'none';
+                // 阶段3：SWF二进制验证
+                debug(3, "获取SWF文件头...");
+                const swfResponse = await fetch('game.swf');
+                if (!swfResponse.ok) throw new Error(`HTTP错误: ${swfResponse.status}`);
+                
+                const swfBuffer = await swfResponse.arrayBuffer();
+                const header = new Uint8Array(swfBuffer, 0, 3);
+                const headerHex = Array.from(header).map(b => b.toString(16)).join(' ');
+                debug(3, `文件头字节：${headerHex} (${header.length} bytes)`);
+
+                // 阶段4：内存加载测试
+                debug(4, "执行内存加载测试...");
+                const memoryPlayer = window.RufflePlayer.newest().createPlayer();
+                await memoryPlayer.load({ data: swfBuffer });
+                debug(4, "内存加载成功 ✓");
+
+                // 阶段5：兼容性报告
+                debug(5, "生成兼容性报告...");
+                const compatibilityReport = await memoryPlayer.getCompatibilityReport();
+                debug(5, `检测到${compatibilityReport.issues.length}个兼容性问题`);
+
+                // 阶段6：正式加载
+                debug(6, "初始化正式播放器...");
+                const container = document.getElementById("ruffle-container");
+                const finalPlayer = window.RufflePlayer.newest().createPlayer();
+                container.appendChild(finalPlayer);
+                await finalPlayer.load({ data: swfBuffer });
+                debug(6, "游戏加载完成 ✓");
 
             } catch (error) {
-                console.error("初始化失败:", error);
-                errorMessage.textContent = error.message;
-                errorBox.style.display = 'block';
-                document.querySelector('.loading-screen').style.display = 'none';
+                console.error("全流程错误捕获:", error);
+                debug(6, `❌ 严重错误：${error.message}`);
+                
+                // 高级错误分析
+                const errorDetails = {
+                    "SWF文件大小": swfBuffer?.byteLength || '未知',
+                    "支持的功能": window.RufflePlayer?.newest()?.supportedFeatures() || '未知',
+                    "用户代理": navigator.userAgent,
+                    "内存限制": performance.memory?.jsHeapSizeLimit || '不支持'
+                };
+                console.table(errorDetails);
             }
-        }
-
-        // 启动初始化流程
-        if (document.readyState === 'complete') {
-            initializePlayer();
-        } else {
-            window.addEventListener('load', initializePlayer);
-        }
+        })();
     </script>
 </body>
 </html>
