@@ -2,88 +2,159 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地震避险小游戏</title>
-    <!-- 引入Ruffle播放器 -->
-    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <!--[if lt IE 9]>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <![endif]-->
+    <title>地震避险游戏（兼容版）</title>
     <style>
+        /* 兼容旧浏览器的样式 */
         body {
             margin: 0;
             padding: 20px;
-            background-color: #f0f0f0;
-            font-family: "Microsoft YaHei", Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
+            font-family: "Microsoft YaHei", SimHei, sans-serif;
+            background: #f0f0f0;
         }
-
+        
         .container {
-            width: 100%;
-            max-width: 1024px;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 20px;
-            margin-top: 20px;
-        }
-
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        #ruffle-container {
-            width: 100%;
-            height: 0;
-            padding-top: 56.25%; /* 16:9 宽高比 */
-            position: relative;
+            width: 90%;
             margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            /* IE9兼容写法 */
+            -ms-box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
-
-        ruffle-player {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        
+        .input-group {
+            margin-bottom: 15px;
+            overflow: hidden; /* 清除浮动 */
         }
-
-        .notice {
-            color: #666;
-            font-size: 14px;
-            text-align: center;
-            margin-top: 20px;
+        
+        #swfUrl {
+            width: 70%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            float: left;
+            box-sizing: border-box;
+        }
+        
+        #loadBtn {
+            width: 28%;
+            padding: 8px;
+            margin-left: 2%;
+            float: left;
+            background: #2196F3;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        /* IE10+的媒体查询 */
+        @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {
+            #swfUrl {
+                width: 65%;
+            }
+            #loadBtn {
+                width: 30%;
+            }
         }
     </style>
+    
+    <!-- Polyfills -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/core-js/3.6.5/minified.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fetch/3.0.0/fetch.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@nightly-2023-11-13/ruffle.js"></script>
 </head>
 <body>
-    <h1>地震避险互动小游戏</h1>
+    <!--[if lte IE 8]>
+    <div class="ie-warning">
+        您的浏览器版本过低，建议升级到IE9+或使用Chrome浏览器
+    </div>
+    <![endif]-->
+    
     <div class="container">
+        <h1>地震避险互动游戏</h1>
+        <div class="input-group">
+            <input type="text" id="swfUrl" value="game.swf">
+            <button id="loadBtn" onclick="loadSWF()">加载游戏</button>
+        </div>
         <div id="ruffle-container"></div>
-        <p class="notice">如果无法加载游戏，请尝试更新浏览器或使用最新版Chrome/Firefox浏览器</p>
+        <div id="compat-info"></div>
     </div>
 
     <script>
-        // 自动检测Ruffle加载状态
-        window.RufflePlayer = window.RufflePlayer || {};
-        window.addEventListener("DOMContentLoaded", () => {
-            const container = document.getElementById("ruffle-container");
-            const ruffle = window.RufflePlayer.newest();
-            const player = ruffle.createPlayer();
+        /* 兼容ES5语法 */
+        var currentPlayer = null;
+        
+        // 浏览器能力检测
+        var supportsWebAssembly = typeof WebAssembly !== 'undefined';
+        var supportsPromise = typeof Promise !== 'undefined';
+        
+        // 初始化兼容性提示
+        var compatInfo = document.getElementById('compat-info');
+        if (!supportsWebAssembly) {
+            compatInfo.innerHTML = '<p>提示：当前浏览器不支持WebAssembly，部分功能可能受限</p>';
+        }
+        
+        // 传统事件绑定方式
+        document.getElementById('loadBtn').addEventListener('click', loadSWF, false);
+        
+        function loadSWF() {
+            var url = document.getElementById('swfUrl').value;
+            var container = document.getElementById('ruffle-container');
             
-            player.style.width = "100%";
-            player.style.height = "100%";
+            // 清除旧内容
+            if (currentPlayer) {
+                container.removeChild(currentPlayer);
+            }
             
-            container.appendChild(player);
+            // 创建播放器实例
+            var ruffle = window.RufflePlayer.newest();
+            currentPlayer = ruffle.createPlayer();
             
-            // 加载SWF文件
-            player.load("/game.swf").catch((error) => {
-                console.error("加载SWF文件失败:", error);
-                container.innerHTML = "<p>游戏加载失败，请检查网络连接或刷新页面</p>";
+            // 兼容性配置
+            ruffle.config = {
+                autoplay: 'on',
+                compatibilityLevel: 9,
+                playerVersion: 19,
+                polyfills: true,
+                warnOnUnsupportedContent: false
+            };
+            
+            // 加载SWF
+            currentPlayer.load(url)
+                .then(function() {
+                    console.log('加载成功');
+                })
+                .catch(function(error) {
+                    console.error('加载失败:', error);
+                    alert('加载失败: ' + error.message);
+                });
+                
+            container.appendChild(currentPlayer);
+        }
+        
+        // IE兼容的DOM加载事件
+        if (document.addEventListener) {
+            document.addEventListener('DOMContentLoaded', function() {
+                try {
+                    loadSWF();
+                } catch(e) {
+                    console.error(e);
+                }
             });
-        });
+        } else {
+            window.attachEvent('onload', loadSWF);
+        }
+    </script>
+    
+    <!-- WebAssembly polyfill -->
+    <script>
+    if (!supportsWebAssembly) {
+        document.write('<script src="https://cdn.jsdelivr.net/npm/wasm-polyfill.js"><\/script>');
+    }
     </script>
 </body>
 </html>
