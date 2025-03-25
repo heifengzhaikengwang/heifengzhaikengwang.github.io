@@ -1,102 +1,78 @@
 <script>
-    // 增强型Ruffle配置
+    // 配置Ruffle使用本地资源并解决CORS问题
     window.RufflePlayer = {
         config: {
-            publicPath: "/", 
+            publicPath: "/", // 强制使用根目录路径
             autoplay: "on",
             backgroundColor: "#FFFFFF",
             scale: "noborder",
             warnOnUnsupportedContent: false,
-            // 安全策略增强
+            // 安全策略配置
             allowScriptAccess: false,
-            allowNetworking: "none",
+            allowNetworking: "all",
             openUrlMode: "deny",
-            // 性能优化
-            maxExecutionDuration: { secs: 30, nanos: 0 },
-            logLevel: "error"
+            // 缓存控制
+            runtimeInjectedLibraries: false,
+            preloaderInjectedLibraries: false
         }
     };
 
-    // 可靠加载机制
-    (function initRuffle() {
-        const MAX_RETRY = 3;
-        let retryCount = 0;
-
-        function loadRuffle() {
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = '/ruffle.js?' + Date.now();
-                script.onload = () => {
-                    if (window.RufflePlayer?.newest) {
-                        resolve();
-                    } else {
-                        reject(new Error('Ruffle未正确初始化'));
-                    }
-                };
-                script.onerror = reject;
-                document.head.appendChild(script);
-            });
-        }
-
-        function createPlayer() {
-            try {
-                const ruffle = window.RufflePlayer.newest();
-                const player = ruffle.createPlayer();
-                player.style.cssText = "width:100%;height:100%;";
-                return player;
-            } catch (error) {
-                throw new Error('播放器创建失败: ' + error.message);
-            }
-        }
-
-        async function initialize() {
-            try {
-                // 步骤1: 加载Ruffle核心
-                await loadRuffle();
-                
-                // 步骤2: 创建播放器
-                const container = document.getElementById("ruffle-container");
-                const player = createPlayer();
-                container.appendChild(player);
-
-                // 步骤3: 加载SWF并验证
-                const swfUrl = `/game.swf?cache=${Date.now()}`;
-                const response = await fetch(swfUrl);
-                
-                if (!response.ok) {
-                    throw new Error(`SWF请求失败 (HTTP ${response.status})`);
-                }
-
-                // 步骤4: 实际加载
-                await player.load(swfUrl);
-                
-                // 步骤5: 性能监控
-                player.addEventListener("loadedmetadata", () => {
-                    console.log("SWF元数据加载完成:", 
-                        `尺寸: ${player.width}x${player.height}`,
-                        `帧率: ${player.metadata.frameRate}`
-                    );
-                });
-
-            } catch (error) {
-                console.error(`初始化失败 (尝试次数: ${retryCount + 1}/3)`, error);
-                
-                if (retryCount < MAX_RETRY) {
-                    retryCount++;
-                    console.warn(`2秒后重试...`);
-                    setTimeout(initialize, 2000);
-                } else {
-                    document.getElementById("ruffle-container").innerHTML = 
-                        `<p class="error">错误代码500: 资源加载失败<br>
-                        <small>可能原因：<br>
-                        1. 服务器文件配置错误<br>
-                        2. SWF文件不兼容<br>
-                        3. 网络限制问题</small></p>`;
-                }
-            }
-        }
-
-        // 启动初始化流程
-        document.addEventListener("DOMContentLoaded", initialize);
+    // 动态加载Ruffle核心
+    (function loadRuffle() {
+        const script = document.createElement('script');
+        script.src = '/ruffle.js?nocache=' + Date.now();
+        script.integrity = "sha384-"+btoa("ruffle"); // 简化校验
+        script.crossOrigin = "anonymous";
+        script.onload = initPlayer;
+        script.onerror = fallbackLoader;
+        document.head.appendChild(script);
     })();
+
+    // 主初始化函数
+    function initPlayer() {
+        const container = document.getElementById("ruffle-container");
+        const ruffle = window.RufflePlayer.newest();
+        const player = ruffle.createPlayer();
+        
+        // 设置播放器属性
+        player.style.cssText = "width:100%;height:100%;";
+        container.appendChild(player);
+
+        // 创建不可见的iframe代理
+        const proxyIframe = document.createElement('iframe');
+        proxyIframe.style.display = 'none';
+        proxyIframe.src = '/game.swf'; // 同源加载
+        document.body.appendChild(proxyIframe);
+
+        // 通过代理加载SWF
+        const swfUrl = window.URL.createObjectURL(new Blob(
+            [proxyIframe.contentWindow.document.body.innerHTML],
+            {type: "application/x-shockwave-flash"}
+        ));
+
+        // 正式加载
+        player.load(swfUrl)
+            .catch(error => {
+                console.error("代理加载失败，尝试直连模式:", error);
+                return player.load("/game.swf?t=" + Date.now());
+            })
+            .catch(finalError => {
+                console.error("最终加载失败:", finalError);
+                container.innerHTML = `<p>错误代码500：${finalError.message}</p>`;
+            });
+    }
+
+    // 备用加载方案
+    function fallbackLoader() {
+        console.warn("本地Ruffle加载失败，启用CDN回退");
+        const script = document.createElement('script');
+        script.src = "https://unpkg.com/@ruffle-rs/ruffle";
+        script.onload = initPlayer;
+        document.head.appendChild(script);
+    }
+
+    // DOM加载后启动
+    document.addEventListener("DOMContentLoaded", () => {
+        if (!window.RufflePlayer) window.RufflePlayer = {};
+    });
 </script>
