@@ -2,119 +2,70 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>SWF深度调试 - 黑风寨坑王</title>
-    <style>
-        /* 增强调试面板样式 */
-        #debug-panel {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.8);
-            color: #00ff00;
-            padding: 15px;
-            font-family: monospace;
-            z-index: 9999;
-            max-width: 400px;
-        }
-        .debug-item {
-            margin: 5px 0;
-        }
-    </style>
+    <title>SWF终极加载方案 - 黑风寨坑王</title>
+    <script>
+        // 第一阶段：环境预检
+        (function precheck() {
+            const swfUrl = new URL('./game.swf', window.location.href).href;
+            console.log('[预检] SWF绝对路径:', swfUrl);
+            
+            // 实时检测文件可达性
+            fetch(swfUrl, { method: 'HEAD' })
+                .then(res => {
+                    console.log('[预检] HTTP状态:', res.status);
+                    console.log('[预检] 内容类型:', res.headers.get('Content-Type'));
+                })
+                .catch(console.error);
+        })();
+    </script>
 </head>
 <body>
-    <div id="ruffle-container" style="width:100%;height:100vh"></div>
-    <div id="debug-panel">
-        <div class="debug-item" id="debug-1">[1/6] 初始化环境...</div>
-        <div class="debug-item" id="debug-2">[2/6] Ruffle加载状态：待验证</div>
-        <div class="debug-item" id="debug-3">[3/6] SWF头校验：未开始</div>
-        <div class="debug-item" id="debug-4">[4/6] 内存验证：未开始</div>
-        <div class="debug-item" id="debug-5">[5/6] 兼容性检测：未开始</div>
-        <div class="debug-item" id="debug-6">[6/6] 最终加载：未开始</div>
-    </div>
+    <div id="player-container" style="width:100%;height:100vh"></div>
 
-    <!-- 锁定Ruffle版本 -->
-    <script>
-        window.RufflePlayer = {
-            config: {
-                publicPath: "https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/",
-                polyfills: true,
-                allowScriptAccess: true,
-                compatibilityReport: true,
-            }
-        };
-    </script>
+    <!-- 强制指定Ruffle版本 -->
     <script src="https://unpkg.com/@ruffle-rs/ruffle@0.1.0-nightly.2024.4.18/ruffle.js"></script>
 
     <script>
-        (async () => {
-            const debug = (step, message) => {
-                document.getElementById(`debug-${step}`).innerHTML = 
-                    `[${step}/6] ${message} <small>${new Date().toLocaleTimeString()}</small>`;
-            };
-
+        // 第二阶段：增强型加载器
+        async function bulletproofLoader() {
+            const SWF_URL = '/game.swf'; // 使用根路径
+            
             try {
-                // 阶段1：环境验证
-                debug(1, "检测运行时环境...");
-                const isSecure = window.location.protocol === 'https:';
-                debug(1, `运行协议：${window.location.protocol} ${isSecure ? '✓' : '⚠️'}`);
+                // 步骤1：验证二进制完整性
+                const swfResponse = await fetch(SWF_URL);
+                if (!swfResponse.ok) {
+                    throw new Error(`HTTP ${swfResponse.status} - ${swfResponse.statusText}`);
+                }
+                
+                // 步骤2：验证SWF签名
+                const swfBuffer = await swfResponse.arrayBuffer();
+                const signature = new Uint8Array(swfBuffer.slice(0, 3));
+                if (![70, 87, 83].every((v, i) => signature[i] === v)) { // FWS的ASCII码
+                    throw new Error('无效的SWF文件签名');
+                }
 
-                // 阶段2：Ruffle完整性检查
-                debug(2, "加载Ruffle核心...");
-                await new Promise(resolve => {
-                    const check = () => {
-                        if (window.RufflePlayer?.newest) {
-                            debug(2, "Ruffle加载完成 ✓");
-                            resolve();
-                        } else {
-                            setTimeout(check, 100);
-                        }
-                    };
-                    check();
+                // 步骤3：创建播放器实例
+                const player = window.RufflePlayer.newest().createPlayer();
+                document.getElementById('player-container').appendChild(player);
+
+                // 步骤4：使用二进制数据加载（绕过URL加载）
+                await player.load({
+                    data: swfBuffer,
+                    parameters: {
+                        quality: 'high',
+                        scale: 'exactFit'
+                    }
                 });
 
-                // 阶段3：SWF二进制验证
-                debug(3, "获取SWF文件头...");
-                const swfResponse = await fetch('game.swf');
-                if (!swfResponse.ok) throw new Error(`HTTP错误: ${swfResponse.status}`);
-                
-                const swfBuffer = await swfResponse.arrayBuffer();
-                const header = new Uint8Array(swfBuffer, 0, 3);
-                const headerHex = Array.from(header).map(b => b.toString(16)).join(' ');
-                debug(3, `文件头字节：${headerHex} (${header.length} bytes)`);
-
-                // 阶段4：内存加载测试
-                debug(4, "执行内存加载测试...");
-                const memoryPlayer = window.RufflePlayer.newest().createPlayer();
-                await memoryPlayer.load({ data: swfBuffer });
-                debug(4, "内存加载成功 ✓");
-
-                // 阶段5：兼容性报告
-                debug(5, "生成兼容性报告...");
-                const compatibilityReport = await memoryPlayer.getCompatibilityReport();
-                debug(5, `检测到${compatibilityReport.issues.length}个兼容性问题`);
-
-                // 阶段6：正式加载
-                debug(6, "初始化正式播放器...");
-                const container = document.getElementById("ruffle-container");
-                const finalPlayer = window.RufflePlayer.newest().createPlayer();
-                container.appendChild(finalPlayer);
-                await finalPlayer.load({ data: swfBuffer });
-                debug(6, "游戏加载完成 ✓");
-
+                console.log('SWF加载完成');
             } catch (error) {
-                console.error("全流程错误捕获:", error);
-                debug(6, `❌ 严重错误：${error.message}`);
-                
-                // 高级错误分析
-                const errorDetails = {
-                    "SWF文件大小": swfBuffer?.byteLength || '未知',
-                    "支持的功能": window.RufflePlayer?.newest()?.supportedFeatures() || '未知',
-                    "用户代理": navigator.userAgent,
-                    "内存限制": performance.memory?.jsHeapSizeLimit || '不支持'
-                };
-                console.table(errorDetails);
+                console.error('致命错误:', error);
+                alert(`加载失败: ${error.message}\n请检查控制台获取详情`);
             }
-        })();
+        }
+
+        // 启动加载流程
+        window.addEventListener('DOMContentLoaded', bulletproofLoader);
     </script>
 </body>
 </html>
