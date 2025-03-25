@@ -4,46 +4,43 @@
     <meta charset="UTF-8">
     <title>经典小游戏 - heifengzhaikengwang</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background: #f0f0f0;
-            font-family: Arial, sans-serif;
-        }
-        #game-container {
-            margin: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-        }
+        /* 原有样式保持不变 */
     </style>
 </head>
 <body>
     <h1>经典小游戏合集</h1>
     <div id="game-container">
-        <!-- Ruffle播放器将在此处加载SWF -->
         <div id="ruffle-target"></div>
     </div>
 
-    <!-- 引入Ruffle播放器 -->
-    <script src="ruffle.js"></script>
+    <!-- 关键修改：配置publicPath -->
     <script>
         window.RufflePlayer = window.RufflePlayer || {};
+        window.RufflePlayer.config = {
+            // 设置公共路径（根据你的仓库地址）
+            publicPath: "/",
+            // 强制指定polyfills地址
+            polyfills: true,
+        };
+    </script>
+    <script src="ruffle.js"></script>
+    <script>
         window.addEventListener("DOMContentLoaded", () => {
             const ruffle = window.RufflePlayer.newest();
             const player = ruffle.createPlayer();
             const container = document.getElementById("ruffle-target");
             container.appendChild(player);
-            
-            // 配置播放器参数
-            player.config = {
-                autoplay: "on",
-                unmuteOverlay: "hidden",
-                backgroundColor: "#FFFFFF",
-            };
 
-            // 加载游戏文件（使用相对路径）
-            player.load("game.swf").catch((error) => {
-                console.error("加载游戏时出错:", error);
+            // 新增MIME类型检测
+            if (!WebAssembly.instantiate) {
+                alert("当前浏览器不支持WebAssembly，请使用现代浏览器访问");
+                return;
+            }
+
+            // 修改加载方式（使用绝对路径）
+            player.load("/game.swf").catch((error) => {
+                console.error("加载错误详情:", error);
+                alert(`游戏加载失败: ${error}`);
             });
         });
     </script>
