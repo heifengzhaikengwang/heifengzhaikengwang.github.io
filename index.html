@@ -1,78 +1,51 @@
-<script>
-    // 配置Ruffle使用本地资源并解决CORS问题
-    window.RufflePlayer = {
-        config: {
-            publicPath: "/", // 强制使用根目录路径
-            autoplay: "on",
-            backgroundColor: "#FFFFFF",
-            scale: "noborder",
-            warnOnUnsupportedContent: false,
-            // 安全策略配置
-            allowScriptAccess: false,
-            allowNetworking: "all",
-            openUrlMode: "deny",
-            // 缓存控制
-            runtimeInjectedLibraries: false,
-            preloaderInjectedLibraries: false
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>经典小游戏 - heifengzhaikengwang</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #f0f0f0;
+            font-family: Arial, sans-serif;
         }
-    };
+        #game-container {
+            margin: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <h1>经典小游戏合集</h1>
+    <div id="game-container">
+        <!-- Ruffle播放器将在此处加载SWF -->
+        <div id="ruffle-target"></div>
+    </div>
 
-    // 动态加载Ruffle核心
-    (function loadRuffle() {
-        const script = document.createElement('script');
-        script.src = '/ruffle.js?nocache=' + Date.now();
-        script.integrity = "sha384-"+btoa("ruffle"); // 简化校验
-        script.crossOrigin = "anonymous";
-        script.onload = initPlayer;
-        script.onerror = fallbackLoader;
-        document.head.appendChild(script);
-    })();
+    <!-- 引入Ruffle播放器 -->
+    <script src="ruffle.js"></script>
+    <script>
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.addEventListener("DOMContentLoaded", () => {
+            const ruffle = window.RufflePlayer.newest();
+            const player = ruffle.createPlayer();
+            const container = document.getElementById("ruffle-target");
+            container.appendChild(player);
+            
+            // 配置播放器参数
+            player.config = {
+                autoplay: "on",
+                unmuteOverlay: "hidden",
+                backgroundColor: "#FFFFFF",
+            };
 
-    // 主初始化函数
-    function initPlayer() {
-        const container = document.getElementById("ruffle-container");
-        const ruffle = window.RufflePlayer.newest();
-        const player = ruffle.createPlayer();
-        
-        // 设置播放器属性
-        player.style.cssText = "width:100%;height:100%;";
-        container.appendChild(player);
-
-        // 创建不可见的iframe代理
-        const proxyIframe = document.createElement('iframe');
-        proxyIframe.style.display = 'none';
-        proxyIframe.src = '/game.swf'; // 同源加载
-        document.body.appendChild(proxyIframe);
-
-        // 通过代理加载SWF
-        const swfUrl = window.URL.createObjectURL(new Blob(
-            [proxyIframe.contentWindow.document.body.innerHTML],
-            {type: "application/x-shockwave-flash"}
-        ));
-
-        // 正式加载
-        player.load(swfUrl)
-            .catch(error => {
-                console.error("代理加载失败，尝试直连模式:", error);
-                return player.load("/game.swf?t=" + Date.now());
-            })
-            .catch(finalError => {
-                console.error("最终加载失败:", finalError);
-                container.innerHTML = `<p>错误代码500：${finalError.message}</p>`;
+            // 加载游戏文件（使用相对路径）
+            player.load("game.swf").catch((error) => {
+                console.error("加载游戏时出错:", error);
             });
-    }
-
-    // 备用加载方案
-    function fallbackLoader() {
-        console.warn("本地Ruffle加载失败，启用CDN回退");
-        const script = document.createElement('script');
-        script.src = "https://unpkg.com/@ruffle-rs/ruffle";
-        script.onload = initPlayer;
-        document.head.appendChild(script);
-    }
-
-    // DOM加载后启动
-    document.addEventListener("DOMContentLoaded", () => {
-        if (!window.RufflePlayer) window.RufflePlayer = {};
-    });
-</script>
+        });
+    </script>
+</body>
+</html>
