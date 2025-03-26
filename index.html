@@ -2,68 +2,103 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>黑风寨坑王 SWF 展厅</title>
-    <!-- 专为 GitHub Pages 优化的预加载配置 -->
-    <link rel="preload" href="https://heifengzhaikengwang.github.io/ruffle.js" as="script">
-    <link rel="preload" href="https://heifengzhaikengwang.github.io/ruffle.wasm" as="fetch" crossorigin="anonymous">
+    <title>黑风寨SWF托管系统</title>
+    
+    <!-- 深度性能优化区块 -->
+    <link rel="preload" href="./ruffle.js" as="script">
+    <link rel="modulepreload" href="./ruffle.wasm">
+    <meta http-equiv="origin-trial" content="你的GitHub服务密钥">
+    
+    <!-- 自适应布局样式 -->
     <style>
-        /* 移动端自适应样式 */
-        .swf-frame {
-            border: 2px solid #2c3e50;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        :root {
+            --primary-color: #e74c3c; /* 与错误提示框主色匹配 */
+            --background-gradient: linear-gradient(135deg, #e74c3c 0%, #e67e22 100%);
+        }
+
+        .ruffle-container {
+            width: 90vw;
+            height: 80vh;
             margin: 20px auto;
-            max-width: 90%;
+            border: 3px solid var(--primary-color);
+            border-radius: 15px;
+            background: var(--background-gradient);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         }
     </style>
 </head>
 <body>
-    <h1 style="text-align: center; color: #e74c3c;">黑风寨经典动画档案馆</h1>
-    
-    <!-- 响应式播放器容器 -->
-    <div id="player-container" style="position: relative; padding-top: 56.25%;">
-        <div id="swf-player" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
+    <!-- 增强错误提示框结构 -->
+    <div id="error-panel" style="display:none;">
+        <div class="error-header" style="background:var(--background-gradient);padding:15px;">
+            <h2 style="color:white;margin:0;">⛔ 黑风寨系统告警</h2>
+        </div>
+        <div class="error-content" style="padding:20px;background:#f8f9fa;">
+            <p id="error-message"></p>
+            <button onclick="location.reload()" style="background:var(--primary-color);color:white;">重试加载</button>
+            <a href="https://github.com/ruffle-rs/ruffle/wiki" target="_blank" style="color:var(--primary-color);">查看官方指南</a>
+        </div>
     </div>
 
+    <!-- 播放器容器 -->
+    <div class="ruffle-container" id="swf-container"></div>
+
+    <!-- Ruffle核心配置 -->
     <script>
-        // 针对您的专属域名配置
+        // GitHub Pages 专用路径解析
+        const isGitHubIO = window.location.hostname === 'heifengzhaikengwang.github.io';
+        
         window.RufflePlayer = {
             config: {
-                publicPath: "/", // 指向仓库根目录
-                autoplay: "auto",
-                backgroundColor: "#ecf0f1",
-                letterbox: "fullscreen",
-                warnOnUnsupportedContent: false
+                publicPath: isGitHubIO ? 
+                    "/" : /* 生产模式 */
+                    window.location.pathname.replace(/\/[^/]+$/, "/") + "/" /* 开发模式 */,
+                
+                allowFullscreen: true,
+                forceScale: true,
+                quality: "high"
+            },
+            
+            polyfills: true,
+            
+            // 增强错误处理（与错误面板联动）
+            onError: function(errorType, errorDetail) {
+                document.getElementById("error-panel").style.display = "block";
+                document.getElementById("error-message").textContent = 
+                    `[错误代码 ${errorType}] ${errorDetail}`;
             }
         };
     </script>
-    
-    <!-- 动态加载核心库 -->
-    <script src="/ruffle.js" defer></script>
 
+    <!-- 动态加载库文件 -->
+    <script src="./ruffle.js"></script>
+
+    <!-- 播放器控制逻辑 -->
     <script>
-        // SWF 文件列表（示例）
-        const SWF_LIBRARY = [
-            { name: "经典动画", path: "/legacy.swf" },
-            { name: "交互游戏", path: "/game.swf" }
-        ];
-
-        // 初始化播放器
-        window.addEventListener('DOMContentLoaded', () => {
-            const ruffle = window.RufflePlayer.newest();
-            const player = ruffle.createPlayer();
-            document.getElementById("swf-player").appendChild(player);
-
-            // 自动加载首个 SWF
-            player.load(SWF_LIBRARY[0].path)
-                .then(() => {
-                    console.log("黑风寨资源加载成功！");
-                    player.classList.add("swf-frame");
-                })
-                .catch(e => {
-                    console.error("加载异常:", e);
-                    alert(`加载失败: ${e.message}`);
+        const SWF_FILE = "/legacy.swf"; // 修改为你的SWF路径
+        
+        window.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const ruffle = window.RufflePlayer.newest();
+                const player = ruffle.createPlayer();
+                document.getElementById("swf-container").appendChild(player);
+                
+                // 添加进度条
+                player.addEventListener("progress", (e) => {
+                    console.log(`加载进度: ${(e.loaded / e.total * 100).toFixed(1)}%`);
                 });
+
+                // 启动加载
+                await player.load(SWF_FILE);
+                
+                // 自动播放控制
+                player.play().catch(() => {
+                    player.style.display = "block";
+                });
+            } catch (err) {
+                console.error("[黑风寨诊断] 致命错误:", err.stack);
+                window.RufflePlayer.onError(999, err.message);
+            }
         });
     </script>
 </body>
