@@ -1,49 +1,69 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>地震避险小游戏</title>
-    
-    <!-- Ruffle 配置 -->
-    <script>
-        window.RufflePlayer = window.RufflePlayer || {};
-        window.RufflePlayer.config = {
-            autoplay: "auto",
-            preferredRenderer: "webgl",
-            unmuteOverlay: "hidden",
-            logLevel: "error",
-            polyfills: true
-        };
-    </script>
-    
-    <!-- 加载 Ruffle 核心文件 -->
-    <script src="ruffle.js"></script>
-    
+    <meta charset="utf-8">
+    <title>黑风寨坑王 SWF 展厅</title>
+    <!-- 专为 GitHub Pages 优化的预加载配置 -->
+    <link rel="preload" href="https://heifengzhaikengwang.github.io/ruffle.js" as="script">
+    <link rel="preload" href="https://heifengzhaikengwang.github.io/ruffle.wasm" as="fetch" crossorigin="anonymous">
     <style>
-        body { margin: 0; padding: 20px; background: #f0f0f0; }
-        .container { max-width: 1024px; margin: 0 auto; }
-        #game-container { width: 100%; height: 600px; position: relative; }
+        /* 移动端自适应样式 */
+        .swf-frame {
+            border: 2px solid #2c3e50;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin: 20px auto;
+            max-width: 90%;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>地震避险互动小游戏</h1>
-        <div id="game-container">
-            <ruffle-player id="mainPlayer" style="width:100%;height:100%"></ruffle-player>
-        </div>
+    <h1 style="text-align: center; color: #e74c3c;">黑风寨经典动画档案馆</h1>
+    
+    <!-- 响应式播放器容器 -->
+    <div id="player-container" style="position: relative; padding-top: 56.25%;">
+        <div id="swf-player" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
     </div>
 
     <script>
+        // 针对您的专属域名配置
+        window.RufflePlayer = {
+            config: {
+                publicPath: "/", // 指向仓库根目录
+                autoplay: "auto",
+                backgroundColor: "#ecf0f1",
+                letterbox: "fullscreen",
+                warnOnUnsupportedContent: false
+            }
+        };
+    </script>
+    
+    <!-- 动态加载核心库 -->
+    <script src="/ruffle.js" defer></script>
+
+    <script>
+        // SWF 文件列表（示例）
+        const SWF_LIBRARY = [
+            { name: "经典动画", path: "/legacy.swf" },
+            { name: "交互游戏", path: "/game.swf" }
+        ];
+
         // 初始化播放器
-        document.addEventListener("DOMContentLoaded", () => {
-            const player = document.getElementById("mainPlayer");
-            
-            // 加载本地 SWF 文件
-            player.load("game.swf").catch(err => {
-                console.error("加载失败:", err);
-                alert("游戏加载失败，请刷新重试");
-            });
+        window.addEventListener('DOMContentLoaded', () => {
+            const ruffle = window.RufflePlayer.newest();
+            const player = ruffle.createPlayer();
+            document.getElementById("swf-player").appendChild(player);
+
+            // 自动加载首个 SWF
+            player.load(SWF_LIBRARY[0].path)
+                .then(() => {
+                    console.log("黑风寨资源加载成功！");
+                    player.classList.add("swf-frame");
+                })
+                .catch(e => {
+                    console.error("加载异常:", e);
+                    alert(`加载失败: ${e.message}`);
+                });
         });
     </script>
 </body>
