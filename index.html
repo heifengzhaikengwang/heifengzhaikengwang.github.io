@@ -1,119 +1,32 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <!-- 关键修复1：调整CSP策略 -->
-    <meta http-equiv="Content-Security-Policy" 
-          content="default-src 'self' https: 'unsafe-eval' 'wasm-unsafe-eval' blob: data:">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>经典 Flash 游戏库 - heifengzhaikengwang</title>
-    
-    <!-- 关键修复2：显式指定基础路径 -->
-    <base href="https://heifengzhaikengwang.github.io/">
-
-    <!-- 关键修复3：添加Wasm预加载 -->
-    <link rel="preload" href="ruffle.wasm" as="fetch" crossorigin="anonymous">
-    
-    <!-- 增强加载顺序控制 -->
-    <script defer src="ruffle.js"></script>
-
-    <style>
-        :root { --primary: #2c3e50; --accent: #e74c3c; }
-        body { font-family: system-ui, -apple-system, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
-        #player-container { background: #fff; border-radius: 12px; min-height: 600px; position: relative; }
-        .loader { /* 保持原有加载动画样式 */ }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🎮 经典游戏档案馆</h1>
-        <p>Ruffle 技术驱动 | 永久保存 Flash 遗产</p>
-    </div>
-
-    <div id="player-container">
-        <div class="loader"></div>
-    </div>
-
-    <!-- 关键修复4：重构初始化逻辑 -->
-    <script>
-        // 增强版初始化流程
-        async function initializePlayer() {
-            try {
-                // 强制等待Ruffle完全初始化
-                await new Promise((resolve, reject) => {
-                    const checkInterval = setInterval(() => {
-                        if (window.RufflePlayer?.newest) {
-                            clearInterval(checkInterval);
-                            resolve();
-                        }
-                    }, 100);
-
-                    setTimeout(() => {
-                        clearInterval(checkInterval);
-                        reject(new Error("Ruffle加载超时（5秒）"));
-                    }, 5000);
-                });
-
-                const ruffle = window.RufflePlayer.newest();
-                const player = ruffle.createPlayer();
-                
-                // 强制设置播放器尺寸
-                player.style.cssText = `
-                    width: 100%!important;
-                    height: 600px!important;
-                    background: #000!important;
-                    display: block!important;
-                `;
-
-                // 事件监听增强
-                player.addEventListener('progress', (event) => {
-                    console.log(`[加载进度] ${event.loaded}/${event.total}`);
-                });
-
-                player.addEventListener('error', (error) => {
-                    console.error('[播放器错误]', error);
-                    showError(`播放器异常: ${error.code}`);
-                });
-
-                // 明确指定SWF路径
-                await player.load('/game.swf');
-                
-                // 清空容器并注入播放器
-                const container = document.getElementById('player-container');
-                container.innerHTML = '';
-                container.appendChild(player);
-
-            } catch (error) {
-                console.error('[初始化失败]', error);
-                showError(`初始化失败: ${error.message}`);
-            }
-        }
-
-        // 增强错误处理
-        function showError(message) {
-            const container = document.getElementById('player-container');
-            if (container) {
-                container.innerHTML = `
-                    <div style="padding: 2rem; background: #ffeef0; border-radius: 8px;">
-                        <h2 style="color: #cf222e;">⚠️ 系统错误</h2>
-                        <p>${message}</p>
-                        <div style="margin-top: 1rem;">
-                            <p>诊断信息：</p>
-                            <ul>
-                                <li>当前时间：${new Date().toLocaleString()}</li>
-                                <li>用户代理：${navigator.userAgent}</li>
-                                <li>Wasm支持：${typeof WebAssembly === 'object' ? '✅' : '❌'}</li>
-                            </ul>
-                        </div>
-                    </div>
-                `;
-            }
-        }
-
-        // 启动控制
-        window.addEventListener('DOMContentLoaded', () => {
-            initializePlayer().catch(e => showError(e.message));
-        });
-    </script>
-</body>
-</html>
+   <html lang="zh-CN">
+   <head>
+       <meta charset="UTF-8">
+       <title>Ruffle 游戏库</title>
+       <script src="ruffle.js"></script>
+       <script>
+           window.RufflePlayer = window.RufflePlayer || {};
+           window.RufflePlayer.config = {
+               publicPath: "/",
+               autoplay: "on",
+               logLevel: "debug"
+           };
+       </script>
+   </head>
+   <body>
+       <div id="player-container"></div>
+       <script>
+           window.addEventListener('DOMContentLoaded', () => {
+               try {
+                   const ruffle = window.RufflePlayer.newest();
+                   const player = ruffle.createPlayer();
+                   player.style.cssText = "width:100%;height:600px;";
+                   document.getElementById("player-container").appendChild(player);
+                   player.load("game.swf");
+               } catch (error) {
+                   console.error("初始化失败:", error);
+               }
+           });
+       </script>
+   </body>
+   </html>
