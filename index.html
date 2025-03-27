@@ -5,112 +5,167 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>经典 Flash 游戏库 - heifengzhaikengwang</title>
     
-    <!-- 核心文件加载 -->
-    <script src="./ruffle.js"></script> <!-- 显式相对路径 -->
+    <!-- 基础路径声明 (关键修复) -->
+    <base href="https://heifengzhaikengwang.github.io/">
+    
+    <!-- 优先加载 Ruffle 核心文件 -->
+    <script src="ruffle.js"></script>
 
-    <!-- 配置与初始化 -->
+    <!-- 强化配置验证 -->
     <script>
-        // 强化配置验证
         (function() {
+            // 强制初始化检查
             if (!window.RufflePlayer) {
-                console.error("RufflePlayer 全局对象未定义");
+                console.error("[致命错误] RufflePlayer 全局对象未定义");
+                showError("Ruffle 核心库加载失败");
                 return;
             }
 
-            // 精确配置参数
+            // 精确路径配置
             window.RufflePlayer.config = Object.freeze({
-                publicPath: new URL("./", window.location.href).href, // 动态计算路径
+                publicPath: document.baseURI,  // 动态获取基础路径
                 polyfills: true,
                 autoplay: "on",
-                logLevel: "warn",
+                logLevel: "debug",
                 compatibilityChecks: true
             });
 
-            // 版本验证
-            if (typeof window.RufflePlayer.newest !== 'function') {
-                console.error("RufflePlayer.newest 不是有效函数");
-                console.debug("当前 RufflePlayer 对象:", window.RufflePlayer);
+            // 版本兼容性验证
+            try {
+                if (typeof window.RufflePlayer.newest !== 'function') {
+                    throw new Error("RufflePlayer.newest() 方法不可用");
+                }
+                console.info("Ruffle 核心模块验证通过");
+            } catch (error) {
+                console.error("Ruffle 初始化失败:", error);
+                showError(error.message);
             }
         })();
+
+        // 统一错误处理
+        function showError(message) {
+            const container = document.getElementById('player-container');
+            if (container) {
+                container.innerHTML = `
+                    <div style="padding: 2rem; background: #ffeef0; border-radius: 8px;">
+                        <h2 style="color: #cf222e;">⚠️ 系统错误</h2>
+                        <p>${message}</p>
+                        <h3>诊断指南：</h3>
+                        <ol>
+                            <li>访问 <a href="/ruffle.js" target="_blank">ruffle.js</a> 验证文件存在</li>
+                            <li>检查控制台 Network 标签的加载状态</li>
+                            <li>强制刷新页面 <button onclick="location.reload()" style="padding: 4px 8px;">↻</button></li>
+                        </ol>
+                        <p style="margin-top: 1rem; color: #666;">
+                            技术信息：${navigator.userAgent}
+                        </p>
+                    </div>
+                `;
+            }
+        }
     </script>
 
     <style>
-        /* 保持原有样式不变 */
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f8f9fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            padding: 3rem 0;
+            background: linear-gradient(135deg, var(--primary), #34495e);
+            color: white;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #player-container {
+            background: #fff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            margin: 2rem 0;
+            position: relative;
+            min-height: 600px;
+        }
+
+        .loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 48px;
+            height: 48px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
     </style>
 </head>
 <body>
-    <!-- 保持原有 DOM 结构不变 -->
+    <div class="header">
+        <h1>🎮 经典游戏档案馆</h1>
+        <p>Ruffle 技术驱动 | 永久保存 Flash 遗产</p>
+    </div>
+
+    <div id="player-container">
+        <div class="loader"></div>
+    </div>
 
     <script>
-        // 强化初始化流程
-        function initRuffle() {
+        // 安全初始化流程
+        function initializePlayer() {
             try {
-                // 三级验证机制
-                if (!window.RufflePlayer) throw Error("RufflePlayer 未定义");
-                if (!window.RufflePlayer.newest) throw Error("newest() 方法缺失");
-                
                 const ruffle = window.RufflePlayer.newest();
                 const container = document.getElementById('player-container');
                 
-                // 容器存在性检查
-                if (!container) throw Error("播放器容器未找到");
-
+                // 创建播放器实例
                 const player = ruffle.createPlayer();
-                player.style.cssText = "width:100%;height:600px;";
+                player.style.cssText = `
+                    width: 100%;
+                    height: 600px;
+                    background: #000;
+                `;
+                
+                // 清空容器并注入播放器
                 container.innerHTML = '';
                 container.appendChild(player);
 
-                // 异步加载测试
-                player.load('game.swf').then(() => {
-                    console.log("SWF 加载成功");
-                }).catch(e => {
-                    console.error("SWF 加载失败:", e);
-                });
+                // 加载游戏内容
+                player.load('game.swf')
+                    .then(() => console.log('SWF 加载成功'))
+                    .catch(e => {
+                        console.error('SWF 加载失败:', e);
+                        showError(`游戏加载失败: ${e.message}`);
+                    });
 
             } catch (error) {
-                const errorHtml = `
-                    <div style="color:#dc3545; padding:2rem; text-align:center;">
-                        <h3>🚨 严重错误</h3>
-                        <p>${error.message}</p>
-                        <div style="margin-top:1rem;">
-                            <button onclick="location.reload()" style="padding:0.5rem 1rem; background:#007bff; color:white; border:none; border-radius:4px;">
-                                重新加载
-                            </button>
-                        </div>
-                        <div style="margin-top:1rem; font-size:0.9em;">
-                            <p>技术信息：</p>
-                            <ul style="text-align:left; list-style:none;">
-                                <li>Ruffle 版本: ${window.RufflePlayer?.version || '未知'}</li>
-                                <li>核心文件状态: ${checkFileStatus()}</li>
-                            </ul>
-                        </div>
-                    </div>
-                `;
-                document.getElementById('player-container').innerHTML = errorHtml;
+                console.error('播放器初始化异常:', error);
+                showError(error.message);
             }
         }
 
-        // 文件状态检查
-        function checkFileStatus() {
-            return [
-                { name: 'ruffle.js', path: './ruffle.js' },
-                { name: '核心模块', path: './core.ruffle.6434870f3ba01171ffe8.js' },
-                { name: 'WASM 文件', path: './ruffle.wasm' }
-            ].map(file => {
-                try {
-                    new URL(file.path, window.location.href);
-                    return `<li>${file.name}: ✅ 路径有效</li>`;
-                } catch {
-                    return `<li>${file.name}: ❌ 路径无效</li>`;
-                }
-            }).join('');
-        }
-
-        // 安全启动
+        // 启动执行
         if (document.readyState === 'complete') {
-            initRuffle();
+            initializePlayer();
         } else {
-            window.addEventListener('load', initRuffle);
+            window.addEventListener('load', initializePlayer);
         }
     </script>
 </body>
