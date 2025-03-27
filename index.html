@@ -2,28 +2,18 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 关键修复：简化CSP策略 -->
+    <!-- 修正后的CSP策略 -->
     <meta http-equiv="Content-Security-Policy" 
-          content="default-src 'self' https://heifengzhaikengwang.github.io 'unsafe-eval'">
+          content="default-src 'self' https://heifengzhaikengwang.github.io;
+                   script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval';
+                   connect-src 'self';
+                   media-src 'self' blob:">
     
-    <base href="https://heifengzhaikengwang.github.io/">
-    
-    <!-- 加载策略优化 -->
-    <script>
-        // 预加载关键资源
-        const preload = url => {
-            const link = document.createElement('link');
-            link.rel = 'preload';
-            link.href = url;
-            link.as = url.endsWith('.wasm') ? 'fetch' : 'script';
-            link.crossOrigin = 'anonymous';
-            document.head.appendChild(link);
-        };
-        preload('ruffle.wasm');
-        preload('game.swf');
-    </script>
-    
-    <script src="ruffle.js" defer></script>
+    <!-- 根据实际路径调整base -->
+    <base href="./"> 
+
+    <!-- 移除预加载机制 -->
+    <script src="ruffle.js" defer crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -32,54 +22,60 @@
     </div>
 
     <script>
-        // 增强版初始化
         (function() {
-            let retryCount = 0;
-            
             async function init() {
-                try {
-                    const ruffle = await waitForRuffle();
-                    const player = ruffle.createPlayer();
-                    
-                    // 强制更新DOM
-                    const container = document.getElementById('player-container');
-                    container.innerHTML = '';
-                    container.appendChild(player);
+                const MAX_RETRIES = 3;
+                const BASE_DELAY = 1000;
 
-                    // 带超时的加载
-                    await Promise.race([
-                        player.load('game.swf'),
-                        new Promise((_, reject) => 
-                            setTimeout(() => reject(new Error('加载超时')), 10000)
-                        )
-                    ]);
-                } catch (e) {
-                    if (retryCount++ < 3) {
-                        console.warn(`第${retryCount}次重试...`);
-                        await init();
-                    } else {
-                        showFatalError(e);
+                for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+                    try {
+                        const ruffle = await new Promise((resolve, reject) => {
+                            const checkInterval = setInterval(() => {
+                                if (window.RufflePlayer?.newest) {
+                                    clearInterval(checkInterval);
+                                    resolve(window.RufflePlayer.newest());
+                                }
+                            }, 100);
+
+                            setTimeout(() => {
+                                clearInterval(checkInterval);
+                                reject(new Error('Ruffle初始化超时'));
+                            }, 15000);
+                        });
+
+                        const container = document.getElementById('player-container');
+                        const player = ruffle.createPlayer();
+                        container.replaceChildren(player); // 安全清空容器
+
+                        await Promise.race([
+                            player.load('game.swf'),
+                            new Promise((_, reject) => 
+                                setTimeout(() => reject(new Error('SWF加载超时')), 10000)
+                            )
+                        ]);
+                        return; // 成功则退出
+                    } catch (e) {
+                        if (attempt === MAX_RETRIES - 1) {
+                            showFatalError(e);
+                            throw e;
+                        }
+                        await new Promise(r => setTimeout(r, BASE_DELAY * Math.pow(2, attempt)));
                     }
                 }
             }
 
-            function waitForRuffle() {
-                return new Promise((resolve, reject) => {
-                    const interval = setInterval(() => {
-                        if (window.RufflePlayer?.newest) {
-                            clearInterval(interval);
-                            resolve(window.RufflePlayer.newest());
-                        }
-                    }, 100);
-                    
-                    setTimeout(() => {
-                        clearInterval(interval);
-                        reject(new Error('Ruffle未加载'));
-                    }, 15000);
-                });
+            // 错误处理
+            function showFatalError(error) {
+                const container = document.getElementById('player-container');
+                container.innerHTML = `
+                    <div style="color:red;padding:20px;">
+                        <h2>加载失败</h2>
+                        <p>${error.message}</p>
+                        <button onclick="location.reload()">重试</button>
+                    </div>
+                `;
             }
 
-            // 启动
             window.addEventListener('DOMContentLoaded', init);
         })();
     </script>
