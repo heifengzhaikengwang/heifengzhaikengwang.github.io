@@ -4,34 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- 关键安全策略配置 -->
+    <!-- 安全策略配置（已适配GitHub Pages） -->
     <meta http-equiv="Content-Security-Policy" 
           content="default-src 'self' https://heifengzhaikengwang.github.io;
-                  script-src 'self' 'unsafe-inline' 'unsafe-eval';
+                  script-src 'self' https://heifengzhaikengwang.github.io;
                   style-src 'self' 'unsafe-inline';
-                  connect-src 'self';
-                  worker-src blob:;
-                  img-src * data:;
-                  object-src 'none'">
+                  connect-src 'self' blob:;
+                  worker-src 'self' blob:;
+                  img-src 'self' data:;
+                  object-src 'none';
+                  frame-src 'none'">
 
-    <!-- 基础路径配置 -->
-    <base href="https://heifengzhaikengwang.github.io/">
+    <!-- 动态生成base标签解决路径问题 -->
+    <script>
+        document.write(`<base href="${location.protocol}//${location.host}${location.pathname.split('/').slice(0, -1).join('/')}/">`);
+    </script>
 
-    <!-- Ruffle预加载优化 -->
+    <!-- 预加载优化（跨域配置） -->
     <link rel="preload" href="ruffle.js" as="script">
-    <link rel="preload" href="ruffle.wasm" as="fetch" crossorigin>
+    <link rel="preload" href="ruffle.wasm" as="fetch" crossorigin="anonymous">
     <link rel="preload" href="game.swf" as="fetch">
 
     <title>经典Flash游戏库</title>
     
     <style>
-        :root { --primary: #2c3e50; --accent: #e74c3c; }
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
+            --bg-dark: #121212;
+        }
         body {
             font-family: system-ui, -apple-system, sans-serif;
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
-            background: #1a1a1a;
+            background: var(--bg-dark);
             color: #e0e0e0;
         }
         #player-container {
@@ -41,7 +48,22 @@
             min-height: 600px;
             position: relative;
         }
-        .loader { /* 保持加载动画样式 */ }
+        .load-progress {
+            height: 4px;
+            background: var(--accent);
+            width: 0%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 100;
+            transition: width 0.4s ease;
+        }
+        .error-container {
+            padding: 2rem;
+            background: #2c0a0a;
+            border-radius: 8px;
+            margin: 1rem 0;
+        }
     </style>
 </head>
 <body>
@@ -51,96 +73,169 @@
     </div>
 
     <div id="player-container">
-        <div class="loader"></div>
+        <div class="load-progress" id="progress-bar"></div>
     </div>
 
     <!-- 增强版初始化逻辑 -->
     <script>
         (function() {
-            // 强制缓存清除策略
-            const CACHE_BUSTER = '?v=' + Date.now().toString(16);
-            
-            // 动态加载Ruffle核心
-            const ruffleLoader = new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = 'ruffle.js' + CACHE_BUSTER;
-                script.integrity = 'sha384-...';  // 替换为实际SRI哈希
-                script.crossOrigin = 'anonymous';
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error('Ruffle核心加载失败'));
-                document.head.appendChild(script);
-            });
+            // 进度更新函数
+            function updateProgress(percent) {
+                const bar = document.getElementById('progress-bar');
+                if (bar) bar.style.width = `${percent}%`;
+            }
 
-            // WASM加载控制
-            const wasmLoader = fetch('ruffle.wasm' + CACHE_BUSTER)
-                .then(res => {
-                    if (!res.ok) throw new Error(`WASM请求失败 (${res.status})`);
-                    if (res.headers.get('Content-Type') !== 'application/wasm') {
-                        throw new Error('无效的WASM MIME类型');
-                    }
-                    return res.arrayBuffer();
-                });
-
-            // 播放器初始化
-            async function initialize() {
+            // WASM加载器（带备用方案）
+            async function loadWASM() {
+                updateProgress(20);
                 try {
-                    // 并行加载关键资源
-                    await Promise.all([ruffleLoader, wasmLoader]);
-                    
-                    // 等待Ruffle初始化完成
-                    await new Promise(resolve => {
-                        const check = setInterval(() => {
-                            if (window.RufflePlayer?.newest) {
-                                clearInterval(check);
-                                resolve();
-                            }
-                        }, 50);
+                    const response = await fetch('ruffle.wasm', {
+                        cache: 'force-cache',
+                        headers: { 'Accept': 'application/wasm' }
                     });
-
-                    const ruffle = window.RufflePlayer.newest();
-                    const player = ruffle.createPlayer();
                     
-                    // 强制设置播放器样式
-                    player.style.cssText = `
-                        width: 100%!important;
-                        height: 600px!important;
-                        background: #000!important;
-                        display: block!important;
-                    `;
-
-                    // 加载游戏内容
-                    await player.load('game.swf' + CACHE_BUSTER);
-                    document.getElementById('player-container').replaceChildren(player);
-
-                } catch (e) {
-                    showError(e.message);
-                    console.error('初始化失败:', e);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    // MIME类型检查（宽松处理）
+                    const contentType = response.headers.get('content-type') || '';
+                    if (!contentType.includes('wasm')) {
+                        console.warn('非标准WASM MIME类型:', contentType);
+                    }
+                    
+                    updateProgress(60);
+                    return await response.arrayBuffer();
+                } catch (error) {
+                    console.error('主WASM加载失败:', error);
+                    // 备用CDN源
+                    updateProgress(40);
+                    return fetch('https://unpkg.com/@ruffle-rs/ruffle@latest/ruffle.wasm')
+                        .then(r => r.arrayBuffer());
                 }
             }
 
-            // 可视化错误处理
-            function showError(msg) {
+            // Ruffle加载器
+            function loadRuffle() {
+                updateProgress(10);
+                return new Promise((resolve) => {
+                    const script = document.createElement('script');
+                    script.src = 'ruffle.js';
+                    script.onload = () => {
+                        updateProgress(30);
+                        resolve();
+                    };
+                    script.onerror = () => {
+                        // 备用CDN加载
+                        const fallback = document.createElement('script');
+                        fallback.src = 'https://unpkg.com/@ruffle-rs/ruffle@latest/ruffle.js';
+                        document.head.appendChild(fallback);
+                        fallback.onload = resolve;
+                    };
+                    document.head.appendChild(script);
+                });
+            }
+
+            // 错误显示
+            function showError(message, details = '') {
                 const container = document.getElementById('player-container');
                 if (!container) return;
                 
                 container.innerHTML = `
-                    <div style="padding: 2rem; background: #2c0a0a; border-radius: 8px;">
-                        <h2 style="color: #ff4440;">⚠️ 严重错误</h2>
-                        <p>${msg}</p>
-                        <div style="margin-top: 1rem; color: #aaa;">
-                            <p>诊断信息：</p>
-                            <ul>
-                                <li>时间戳：${new Date().toISOString()}</li>
-                                <li>用户代理：${navigator.userAgent}</li>
-                                <li>WASM支持：${typeof WebAssembly === 'object' ? '✅' : '❌'}</li>
-                            </ul>
+                    <div class="error-container">
+                        <h2 style="color: #ff4440;">⚠️ 加载错误</h2>
+                        <p>${message}</p>
+                        ${details && `<pre style="overflow-x: auto; color: #ccc;">${details}</pre>`}
+                        <div style="margin-top: 1rem;">
+                            <button onclick="window.location.reload()">重试</button>
+                            <p style="font-size: 0.8em; margin-top: 1em;">
+                                技术支持: 检查控制台日志获取详细信息
+                            </p>
                         </div>
                     </div>
                 `;
             }
 
-            // 启动流程
-            window.addEventListener('DOMContentLoaded', initialize);
+            // 主初始化流程
+            async function initialize(retryCount = 0) {
+                try {
+                    updateProgress(5);
+                    
+                    // 并行加载关键资源
+                    const [wasmBuffer] = await Promise.all([
+                        loadWASM(),
+                        loadRuffle()
+                    ]);
+
+                    updateProgress(70);
+                    
+                    // 等待Ruffle初始化
+                    await new Promise((resolve) => {
+                        const checkInterval = setInterval(() => {
+                            if (window.RufflePlayer?.newest) {
+                                clearInterval(checkInterval);
+                                resolve();
+                            }
+                        }, 50);
+                        
+                        // 超时处理
+                        setTimeout(() => {
+                            clearInterval(checkInterval);
+                            throw new Error('Ruffle初始化超时');
+                        }, 5000);
+                    });
+
+                    updateProgress(80);
+                    
+                    const ruffle = window.RufflePlayer.newest();
+                    const player = ruffle.createPlayer();
+                    
+                    // 强制样式设置
+                    player.style.cssText = `
+                        width: 100% !important;
+                        height: 600px !important;
+                        background: #000 !important;
+                        display: block !important;
+                    `;
+
+                    updateProgress(90);
+                    
+                    // 加载SWF内容
+                    await player.load('game.swf', {
+                        parameters: {
+                            quality: 'high',
+                            allowScriptAccess: 'never'
+                        }
+                    });
+                    
+                    document.getElementById('player-container').replaceChildren(player);
+                    updateProgress(100);
+                    
+                } catch (error) {
+                    if (retryCount < 2) {
+                        await new Promise(r => setTimeout(r, 1000 * (retryCount + 1)));
+                        return initialize(retryCount + 1);
+                    }
+                    
+                    showError(
+                        '游戏加载失败', 
+                        `错误类型: ${error.name}\n` +
+                        `详细信息: ${error.message}\n` +
+                        `用户代理: ${navigator.userAgent}\n` +
+                        `WASM支持: ${typeof WebAssembly === 'object' ? '是' : '否'}`
+                    );
+                    console.error('初始化失败:', error);
+                }
+            }
+
+            // 启动初始化
+            window.addEventListener('DOMContentLoaded', () => {
+                // 环境检测
+                if (typeof WebAssembly !== 'object') {
+                    showError('您的浏览器不支持WebAssembly', '请使用Chrome/Firefox/Edge等现代浏览器');
+                    return;
+                }
+                
+                initialize();
+            });
         })();
     </script>
 </body>
