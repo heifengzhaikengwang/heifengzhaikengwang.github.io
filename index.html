@@ -1,60 +1,191 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
-    <title>Ruffle Flash Player - heifengzhaikengwang</title>
-    <!-- 官方推荐：优先加载 ruffle.js -->
-    <script src="ruffle.js"></script>
-    <!-- 可选：添加 Ruffle 公共配置 -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>经典 Flash 游戏库 - heifengzhaikengwang</title>
+    
+    <!-- Ruffle 核心配置 -->
     <script>
         window.RufflePlayer = window.RufflePlayer || {};
         window.RufflePlayer.config = {
-            // 官网推荐配置项
-            "publicPath": "/",      // 指定核心文件路径（与仓库结构一致）
-            "polyfills": true,     // 启用浏览器兼容补丁
-            "autoplay": "auto",    // 自动播放设置
-            "unmuteOverlay": "hidden" // 隐藏静音覆盖层
+            // 关键配置：GitHub Pages 完整路径
+            "publicPath": "https://heifengzhaikengwang.github.io/",
+            "polyfills": true,
+            "autoplay": "on",  // 强制自动播放
+            "unmuteOverlay": "hidden",
+            "logLevel": "error",  // 仅显示错误日志
+            "backgroundColor": "#000000",  // 黑边填充
+            "scale": "showAll"  // 自适应缩放
         };
     </script>
+    
+    <!-- 预加载关键资源 -->
+    <link rel="preload" href="ruffle.js" as="script">
+    <link rel="preload" href="ruffle.wasm" as="fetch">
+    
+    <!-- 现代 UI 样式 -->
     <style>
-        /* 基础样式 */
-        body { 
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 20px auto;
-            padding: 20px;
-            text-align: center;
-            background: #f0f0f0;
+        :root {
+            --primary: #2c3e50;
+            --accent: #e74c3c;
         }
-        #ruffle-player {
-            background: white;
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f2f5;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            padding: 3rem 0;
+            background: linear-gradient(135deg, var(--primary), #34495e);
+            color: white;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        #player-container {
+            background: #fff;
             border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin: 20px auto;
             overflow: hidden;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+            margin: 2rem 0;
+            position: relative;
+            min-height: 600px;
+        }
+
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            padding: 1rem;
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #e0e0e0;
+        }
+
+        .game-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 48px;
+            height: 48px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
         }
     </style>
 </head>
 <body>
-    <h1>🎮 Flash 游戏托管平台</h1>
-    <p>使用 Ruffle 官方自托管方案 | 仓库: <code>heifengzhaikengwang.github.io</code></p>
-    
-    <!-- 官网推荐播放器容器 -->
-    <div id="ruffle-player"></div>
+    <div class="header">
+        <h1>🎮 经典游戏档案馆</h1>
+        <p>Ruffle 技术驱动 | 永久保存 Flash 遗产</p>
+    </div>
 
+    <div id="player-container">
+        <div class="loader"></div>
+    </div>
+
+    <div class="game-grid">
+        <!-- 游戏列表（根据实际 SWF 文件修改） -->
+        <div class="game-card" onclick="loadGame('game.swf', '黄金矿工')">
+            <h3>黄金矿工</h3>
+            <p>点击加载经典挖矿游戏</p>
+        </div>
+        
+        <div class="game-card" onclick="loadGame('game2.swf', '狂扁小朋友')">
+            <h3>狂扁小朋友</h3>
+            <p>童年经典动作游戏</p>
+        </div>
+    </div>
+
+    <script src="ruffle.js"></script>
     <script>
-        // 官网标准初始化代码
+        // 全局状态管理
+        let currentPlayer = null;
+        let isLoading = false;
+
+        // 初始化 Ruffle
         window.addEventListener("DOMContentLoaded", () => {
-            const ruffle = window.RufflePlayer.newest();
-            const player = ruffle.createPlayer();
-            player.style.width = "100%";
-            player.style.height = "480px"; // 推荐高度
-            document.getElementById("ruffle-player").appendChild(player);
-            
-            // 加载 SWF 文件（官网标准方法）
-            player.load("game.swf").catch((e) => {
-                console.error("Ruffle 加载失败:", e);
-            });
+            try {
+                const ruffle = window.RufflePlayer.newest();
+                initPlayer(ruffle);
+            } catch (error) {
+                handleError("Ruffle 初始化失败", error);
+            }
         });
+
+        function initPlayer(ruffle) {
+            currentPlayer = ruffle.createPlayer();
+            currentPlayer.style.width = "100%";
+            currentPlayer.style.height = "600px";
+            document.getElementById("player-container").appendChild(currentPlayer);
+        }
+
+        // 高级加载控制
+        async function loadGame(swfPath, gameName) {
+            if (isLoading) return;
+            
+            isLoading = true;
+            document.querySelector(".loader").style.display = "block";
+            
+            try {
+                if (!currentPlayer) throw new Error("播放器未初始化");
+                
+                await currentPlayer.load(swfPath);
+                document.title = `${gameName} - heifengzhaikengwang`;
+                
+                // 自动聚焦播放器
+                currentPlayer.focus();
+            } catch (error) {
+                handleError(`加载 ${gameName} 失败`, error);
+                alert(`❌ 加载失败: ${error.message}`);
+            } finally {
+                isLoading = false;
+                document.querySelector(".loader").style.display = "none";
+            }
+        }
+
+        // 统一错误处理
+        function handleError(context, error) {
+            console.error(`[ERROR] ${context}:`, error);
+            const errorMsg = `${context}: ${error.message}`;
+            
+            // 错误显示（可选扩展）
+            const container = document.getElementById("player-container");
+            container.innerHTML = `
+                <div style="padding: 2rem; color: var(--accent); text-align: center;">
+                    <h3>⚠️ 加载错误</h3>
+                    <p>${errorMsg}</p>
+                    <button onclick="location.reload()">刷新页面</button>
+                </div>
+            `;
+        }
     </script>
 </body>
 </html>
