@@ -1,43 +1,45 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <!-- 新增预加载 -->
-    <link rel="preload" href="02bb053130ef20e81800.wasm" as="fetch" crossorigin="anonymous">
-    <title>优化版SWF播放器</title>
-    <!-- 使用CDN加速 -->
-    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+    <title>SWF Player</title>
+    <!-- 从官方CDN加载最新版Ruffle -->
+    <script src="https://unpkg.com/@ruffle-rs/ruffle@latest"></script>
     <style>
-        /* 压缩CSS到内联 */
-        #player-container{width:100%;height:100vh;margin:0}
+        #player-container {
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            background: #000;
+        }
     </style>
 </head>
 <body>
     <div id="player-container"></div>
 
     <script>
-        // 异步加载优化
-        window.RufflePlayer = { 
-            config: {
-                publicPath: "https://unpkg.com/@ruffle-rs/ruffle@latest/",
-                polyfills: true,
-                autoplay: "auto"
-            }
-        };
-
-        document.addEventListener("DOMContentLoaded", () => {
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.addEventListener("DOMContentLoaded", () => {
             const player = window.RufflePlayer.newest();
-            player.load({
-                url: "game.swf",
-                allowScriptAccess: true,
-                parameters: { 
-                    quality: "low" // 降低渲染质量提升性能
-                }
-            }).then(ruffle => {
-                document.getElementById("player-container").appendChild(ruffle);
-            }).catch(e => {
-                console.error("加载失败:", e);
-                document.body.innerHTML = `<p>游戏加载失败，请<a href="game.swf">直接下载</a></p>`;
-            });
+            const ruffle = player.createPlayer();
+            const container = document.getElementById("player-container");
+            
+            // 配置自动适配官方CDN资源
+            ruffle.config = {
+                publicPath: "https://unpkg.com/@ruffle-rs/ruffle@latest/",
+                autoplay: "auto",
+                unmuteOverlay: "hidden",
+                openInNewTab: false
+            };
+
+            container.appendChild(ruffle);
+            ruffle.load("game.swf")
+                .then(() => {
+                    console.log("SWF loaded from Ruffle CDN");
+                })
+                .catch((e) => {
+                    console.error("Error:", e);
+                    container.innerHTML = `<p>加载失败，请检查网络连接或<a href="game.swf">下载文件</a></p>`;
+                });
         });
     </script>
 </body>
