@@ -2,57 +2,129 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <!-- 关键修复1：简化CSP策略 -->
-    <meta http-equiv="Content-Security-Policy" 
-          content="default-src 'self' https://heifengzhaikengwang.github.io 'unsafe-eval'">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- 关键修复2：移除预加载指令 -->
-    <!-- 删除之前的 <link rel="preload"> -->
+    <!-- 修复CSP策略的核心配置 -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self' https://heifengzhaikengwang.github.io;
+                  script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
+                  style-src 'self' 'unsafe-inline';
+                  img-src * data:;
+                  connect-src 'self' https://api.iofy.org;
+                  worker-src blob:;
+                  object-src 'none';
+                  base-uri 'self'">
 
-    <!-- 关键修复3：调整脚本加载顺序 -->
-    <script>
-        // 提前初始化Ruffle配置
-        window.RufflePlayer = {
-            config: {
-                publicPath: "/",
-                wasmMimeType: "application/wasm",
-                // 新增加载超时设置
-                loadTimeout: 10000 
-            }
-        };
-    </script>
+    <title>经典游戏库</title>
+    <base href="https://heifengzhaikengwang.github.io/">
+    
+    <!-- Ruffle核心加载 -->
     <script src="ruffle.js" defer></script>
-</head>
 
-<body>
-    <!-- 保持原有DOM结构 -->
-</body>
-
-<script>
-    // 关键修复4：增加网络状态监控
-    let resourceMap = new Map();
-
-    function monitorNetwork() {
-        if (window.performance) {
-            const entries = performance.getEntriesByType("resource");
-            entries.forEach(entry => {
-                if (!resourceMap.has(entry.name)) {
-                    console.log(`[资源加载] ${entry.name} 开始加载`);
-                    resourceMap.set(entry.name, entry.startTime);
-                }
-                
-                if (entry.duration > 0 && resourceMap.has(entry.name)) {
-                    console.log(`[加载完成] ${entry.name} (耗时: ${Math.round(entry.duration)}ms)`);
-                    resourceMap.delete(entry.name);
-                }
-            });
+    <style>
+        :root { --primary: #2c3e50; --accent: #e74c3c; }
+        body { 
+            font-family: system-ui, -apple-system, sans-serif;
+            background: #1a1a1a;  /* 适配深色主题 */
+            color: #e0e0e0;
         }
-        
-        // 每500ms检测一次卡顿资源
-        setTimeout(monitorNetwork, 500);
-    }
+        /* 保持原有样式结构 */
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎮 经典游戏档案馆</h1>
+        <p>Ruffle 技术驱动 | 永久保存 Flash 遗产</p>
+    </div>
 
-    // 启动监控
-    window.addEventListener('load', monitorNetwork);
-</script>
+    <div id="player-container">
+        <div class="loader"></div>
+    </div>
+
+    <script>
+        // CSP兼容的初始化方案
+        (function() {
+            // 动态nonce注入 (安全增强)
+            const nonce = btoa(Date.now()).slice(0, 16);
+            document.currentScript.setAttribute('nonce', nonce);
+
+            // 强化错误处理
+            window.addEventListener('error', function(e) {
+                showError(`全局错误: ${e.message}`);
+            });
+
+            async function initialize() {
+                try {
+                    // Ruffle加载状态检测
+                    await waitForRuffle();
+                    
+                    const ruffle = window.RufflePlayer.newest();
+                    const player = ruffle.createPlayer();
+                    player.style.cssText = `width:100%;height:600px;background:#000;`;
+
+                    // 事件监听增强
+                    player.addEventListener('loadeddata', () => {
+                        console.log('媒体数据加载完成');
+                    });
+
+                    // 网络错误处理
+                    const controller = new AbortController();
+                    setTimeout(() => controller.abort(), 10000);  // 10秒超时
+
+                    await player.load('/game.swf', { 
+                        signal: controller.signal 
+                    });
+
+                    document.getElementById('player-container').appendChild(player);
+                } catch (e) {
+                    showError(`初始化失败: ${e.name} - ${e.message}`);
+                }
+            }
+
+            function waitForRuffle() {
+                return new Promise((resolve, reject) => {
+                    const check = setInterval(() => {
+                        if (window.RufflePlayer?.newest) {
+                            clearInterval(check);
+                            resolve();
+                        }
+                    }, 50);
+                    
+                    setTimeout(() => {
+                        clearInterval(check);
+                        reject(new Error('Ruffle加载超时'));
+                    }, 8000);
+                });
+            }
+
+            // 启动流程
+            if (document.readyState === 'complete') {
+                initialize();
+            } else {
+                window.addEventListener('load', initialize);
+            }
+        })();
+
+        // 增强版错误显示
+        function showError(msg) {
+            const container = document.getElementById('player-container');
+            if (container) {
+                container.innerHTML = `
+                    <div class="error-box">
+                        <h3>🚨 运行异常</h3>
+                        <p>${msg}</p>
+                        <div class="tech-info">
+                            <p>诊断信息：</p>
+                            <ul>
+                                <li>时间戳: ${new Date().toISOString()}</li>
+                                <li>用户代理: ${navigator.userAgent}</li>
+                                <li>在线状态: ${navigator.onLine ? '✅ 在线' : '❌ 离线'}</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
 </html>
