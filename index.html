@@ -1,38 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>SWF Player</title>
-    <script src="ruffle.js"></script>
+    <!-- 新增预加载 -->
+    <link rel="preload" href="02bb053130ef20e81800.wasm" as="fetch" crossorigin="anonymous">
+    <title>优化版SWF播放器</title>
+    <!-- 使用CDN加速 -->
+    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
     <style>
-        #player-container {
-            width: 800px;
-            height: 600px;
-            margin: 20px auto;
-        }
+        /* 压缩CSS到内联 */
+        #player-container{width:100%;height:100vh;margin:0}
     </style>
 </head>
 <body>
     <div id="player-container"></div>
 
     <script>
-        window.RufflePlayer = window.RufflePlayer || {};
-        window.addEventListener("DOMContentLoaded", () => {
-            const container = document.getElementById("player-container");
-            const player = window.RufflePlayer.newest();
-            const ruffle = player.createPlayer();
-            
-            // 配置播放器参数
-            ruffle.config = {
-                autoplay: "on",
-                unmuteOverlay: "hidden",
-                backgroundColor: "#000000",
-                publicPath: "", // 确保wasm文件在根目录
-            };
+        // 异步加载优化
+        window.RufflePlayer = { 
+            config: {
+                publicPath: "https://unpkg.com/@ruffle-rs/ruffle@latest/",
+                polyfills: true,
+                autoplay: "auto"
+            }
+        };
 
-            container.appendChild(ruffle);
-            ruffle.load("game.swf").catch((e) => {
-                console.error("Error loading SWF:", e);
-                container.innerHTML = "<p>Error loading game file</p>";
+        document.addEventListener("DOMContentLoaded", () => {
+            const player = window.RufflePlayer.newest();
+            player.load({
+                url: "game.swf",
+                allowScriptAccess: true,
+                parameters: { 
+                    quality: "low" // 降低渲染质量提升性能
+                }
+            }).then(ruffle => {
+                document.getElementById("player-container").appendChild(ruffle);
+            }).catch(e => {
+                console.error("加载失败:", e);
+                document.body.innerHTML = `<p>游戏加载失败，请<a href="game.swf">直接下载</a></p>`;
             });
         });
     </script>
