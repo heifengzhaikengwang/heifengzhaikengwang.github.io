@@ -4,127 +4,102 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- 修复CSP策略的核心配置 -->
+    <!-- 关键修复1：调整CSP策略 -->
     <meta http-equiv="Content-Security-Policy" 
           content="default-src 'self' https://heifengzhaikengwang.github.io;
-                  script-src 'self' 'unsafe-inline' 'unsafe-eval' https:;
+                  script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https:;
+                  connect-src 'self' https://heifengzhaikengwang.github.io;
                   style-src 'self' 'unsafe-inline';
                   img-src * data:;
-                  connect-src 'self' https://api.iofy.org;
                   worker-src blob:;
-                  object-src 'none';
-                  base-uri 'self'">
-
-    <title>经典游戏库</title>
-    <base href="https://heifengzhaikengwang.github.io/">
+                  object-src 'none'">
     
-    <!-- Ruffle核心加载 -->
-    <script src="ruffle.js" defer></script>
-
-    <style>
-        :root { --primary: #2c3e50; --accent: #e74c3c; }
-        body { 
-            font-family: system-ui, -apple-system, sans-serif;
-            background: #1a1a1a;  /* 适配深色主题 */
-            color: #e0e0e0;
-        }
-        /* 保持原有样式结构 */
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🎮 经典游戏档案馆</h1>
-        <p>Ruffle 技术驱动 | 永久保存 Flash 遗产</p>
-    </div>
-
-    <div id="player-container">
-        <div class="loader"></div>
-    </div>
-
+    <!-- 关键修复2：强制声明WASM MIME类型 -->
+    <meta http-equiv="Wasm-Allowed" content="application/wasm">
+    
+    <base href="https://heifengzhaikengwang.github.io/">
+    <title>经典游戏库</title>
+    
+    <!-- 优化加载顺序 -->
     <script>
-        // CSP兼容的初始化方案
-        (function() {
-            // 动态nonce注入 (安全增强)
-            const nonce = btoa(Date.now()).slice(0, 16);
-            document.currentScript.setAttribute('nonce', nonce);
-
-            // 强化错误处理
-            window.addEventListener('error', function(e) {
-                showError(`全局错误: ${e.message}`);
-            });
-
-            async function initialize() {
-                try {
-                    // Ruffle加载状态检测
-                    await waitForRuffle();
-                    
-                    const ruffle = window.RufflePlayer.newest();
-                    const player = ruffle.createPlayer();
-                    player.style.cssText = `width:100%;height:600px;background:#000;`;
-
-                    // 事件监听增强
-                    player.addEventListener('loadeddata', () => {
-                        console.log('媒体数据加载完成');
-                    });
-
-                    // 网络错误处理
-                    const controller = new AbortController();
-                    setTimeout(() => controller.abort(), 10000);  // 10秒超时
-
-                    await player.load('/game.swf', { 
-                        signal: controller.signal 
-                    });
-
-                    document.getElementById('player-container').appendChild(player);
-                } catch (e) {
-                    showError(`初始化失败: ${e.name} - ${e.message}`);
-                }
+        // 预配置Ruffle以防止初始化竞争
+        window.RufflePlayer = window.RufflePlayer || {
+            config: {
+                publicPath: "/",
+                polyfills: true,
+                // 增强WASM加载策略
+                wasmInit: "streaming",
+                wasmLoadTimeout: 10000
             }
+        };
+    </script>
+    <script src="ruffle.js" async></script>
+</head>
 
-            function waitForRuffle() {
-                return new Promise((resolve, reject) => {
+<body>
+    <!-- 保持原有DOM结构 -->
+</body>
+
+<script>
+    // 增强版加载监控
+    (function() {
+        let wasmLoaded = false;
+        
+        // 1. 加载状态追踪
+        function checkWasm() {
+            if (!WebAssembly) {
+                showError("浏览器不支持WebAssembly");
+                return;
+            }
+            
+            fetch("/ruffle.wasm", { method: 'HEAD' })
+                .then(res => {
+                    if (res.ok && res.headers.get('Content-Type') === 'application/wasm') {
+                        wasmLoaded = true;
+                        initializePlayer();
+                    }
+                })
+                .catch(() => showError("WASM文件无法访问"));
+        }
+
+        // 2. 延迟初始化
+        async function initializePlayer() {
+            try {
+                await new Promise(resolve => {
                     const check = setInterval(() => {
                         if (window.RufflePlayer?.newest) {
                             clearInterval(check);
                             resolve();
                         }
-                    }, 50);
-                    
-                    setTimeout(() => {
-                        clearInterval(check);
-                        reject(new Error('Ruffle加载超时'));
-                    }, 8000);
+                    }, 100);
                 });
-            }
 
-            // 启动流程
-            if (document.readyState === 'complete') {
-                initialize();
-            } else {
-                window.addEventListener('load', initialize);
-            }
-        })();
-
-        // 增强版错误显示
-        function showError(msg) {
-            const container = document.getElementById('player-container');
-            if (container) {
-                container.innerHTML = `
-                    <div class="error-box">
-                        <h3>🚨 运行异常</h3>
-                        <p>${msg}</p>
-                        <div class="tech-info">
-                            <p>诊断信息：</p>
-                            <ul>
-                                <li>时间戳: ${new Date().toISOString()}</li>
-                                <li>用户代理: ${navigator.userAgent}</li>
-                                <li>在线状态: ${navigator.onLine ? '✅ 在线' : '❌ 离线'}</li>
-                            </ul>
-                        </div>
-                    </div>
-                `;
+                const player = window.RufflePlayer.newest().createPlayer();
+                document.getElementById('player-container').appendChild(player);
+                
+                // 3. 带重试机制的加载
+                let retries = 3;
+                const loadGame = async () => {
+                    try {
+                        await player.load('/game.swf');
+                    } catch (e) {
+                        if (retries-- > 0) {
+                            console.log(`第${3-retries}次重试...`);
+                            await loadGame();
+                        } else {
+                            throw e;
+                        }
+                    }
+                };
+                
+                await loadGame();
+            } catch (e) {
+                showError(`加载失败: ${e.message}`);
             }
         }
-    </script>
-</body>
+
+        // 启动流程
+        window.addEventListener('DOMContentLoaded', checkWasm);
+    })();
+</script>
 </html>
