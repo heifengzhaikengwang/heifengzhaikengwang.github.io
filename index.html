@@ -1,32 +1,58 @@
 <!DOCTYPE html>
-   <html lang="zh-CN">
-   <head>
-       <meta charset="UTF-8">
-       <title>Ruffle 游戏库</title>
-       <script src="ruffle.js"></script>
-       <script>
-           window.RufflePlayer = window.RufflePlayer || {};
-           window.RufflePlayer.config = {
-               publicPath: "/",
-               autoplay: "on",
-               logLevel: "debug"
-           };
-       </script>
-   </head>
-   <body>
-       <div id="player-container"></div>
-       <script>
-           window.addEventListener('DOMContentLoaded', () => {
-               try {
-                   const ruffle = window.RufflePlayer.newest();
-                   const player = ruffle.createPlayer();
-                   player.style.cssText = "width:100%;height:600px;";
-                   document.getElementById("player-container").appendChild(player);
-                   player.load("game.swf");
-               } catch (error) {
-                   console.error("初始化失败:", error);
-               }
-           });
-       </script>
-   </body>
-   </html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 关键修复1：简化CSP策略 -->
+    <meta http-equiv="Content-Security-Policy" 
+          content="default-src 'self' https://heifengzhaikengwang.github.io 'unsafe-eval'">
+    
+    <!-- 关键修复2：移除预加载指令 -->
+    <!-- 删除之前的 <link rel="preload"> -->
+
+    <!-- 关键修复3：调整脚本加载顺序 -->
+    <script>
+        // 提前初始化Ruffle配置
+        window.RufflePlayer = {
+            config: {
+                publicPath: "/",
+                wasmMimeType: "application/wasm",
+                // 新增加载超时设置
+                loadTimeout: 10000 
+            }
+        };
+    </script>
+    <script src="ruffle.js" defer></script>
+</head>
+
+<body>
+    <!-- 保持原有DOM结构 -->
+</body>
+
+<script>
+    // 关键修复4：增加网络状态监控
+    let resourceMap = new Map();
+
+    function monitorNetwork() {
+        if (window.performance) {
+            const entries = performance.getEntriesByType("resource");
+            entries.forEach(entry => {
+                if (!resourceMap.has(entry.name)) {
+                    console.log(`[资源加载] ${entry.name} 开始加载`);
+                    resourceMap.set(entry.name, entry.startTime);
+                }
+                
+                if (entry.duration > 0 && resourceMap.has(entry.name)) {
+                    console.log(`[加载完成] ${entry.name} (耗时: ${Math.round(entry.duration)}ms)`);
+                    resourceMap.delete(entry.name);
+                }
+            });
+        }
+        
+        // 每500ms检测一次卡顿资源
+        setTimeout(monitorNetwork, 500);
+    }
+
+    // 启动监控
+    window.addEventListener('load', monitorNetwork);
+</script>
+</html>
