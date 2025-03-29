@@ -3,21 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SWF游戏播放器 - 优化版</title>
+    <title>SWF游戏播放器 - 修复版</title>
     
-    <!-- 预加载关键资源 -->
-    <link rel="preload" href="https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@0.2.0/ruffle.js" as="script">
+    <!-- 使用可靠的CDN源 -->
+    <link rel="preload" href="https://unpkg.com/@ruffle-rs/ruffle@0.2.0/ruffle.js" as="script">
     <link rel="preload" href="game.swf" as="fetch">
-    <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@0.2.0/ruffle.wasm">
+    <link rel="modulepreload" href="https://unpkg.com/@ruffle-rs/ruffle@0.2.0/ruffle.wasm">
     
     <style>
         :root {
             --primary-color: #2196F3;
+            --error-color: #dc3545;
             --background: #f8f9fa;
         }
         
         body {
-            font-family: "Segoe UI", system-ui, sans-serif;
+            font-family: system-ui, "Segoe UI", sans-serif;
             margin: 0;
             padding: 20px;
             background: var(--background);
@@ -34,35 +35,39 @@
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
             padding: 24px;
             margin-top: 20px;
+            position: relative;
         }
 
         #loading {
             text-align: center;
             padding: 20px;
+            transition: opacity 0.3s;
         }
 
-        .progress-bar {
+        .progress-container {
             width: 80%;
             height: 8px;
             background: #eee;
             border-radius: 4px;
             margin: 20px auto;
             overflow: hidden;
+            position: relative;
         }
 
-        .progress-fill {
+        #progress-bar {
             width: 0%;
             height: 100%;
             background: var(--primary-color);
             transition: width 0.3s ease;
         }
 
-        .error-message {
-            color: #dc3545;
+        .error-box {
+            color: var(--error-color);
             padding: 15px;
             background: #ffeef0;
             border-radius: 6px;
             margin: 20px 0;
+            border: 1px solid #ffd6d9;
         }
 
         #game-container {
@@ -71,101 +76,153 @@
             border: 1px solid #ddd;
             border-radius: 8px;
             overflow: hidden;
+            display: none;
+        }
+
+        .retry-button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>游戏加载中...</h1>
+        <h1>SWF游戏播放器</h1>
         
         <!-- 加载状态 -->
         <div id="loading">
-            <div class="progress-bar">
-                <div class="progress-fill"></div>
+            <div class="progress-container">
+                <div id="progress-bar"></div>
             </div>
-            <p>正在加载核心组件 <span id="progress">0%</span></p>
+            <p>正在初始化播放环境 <span id="progress-text">0%</span></p>
         </div>
 
         <!-- 游戏容器 -->
         <div id="game-container"></div>
 
-        <!-- 传统Flash备用 -->
-        <object id="legacy-flash" data="game.swf" type="application/x-shockwave-flash" 
-                width="800" height="600" style="display:none">
-            <param name="movie" value="game.swf">
-            <div class="error-message">
-                您的浏览器不支持HTML5播放，请尝试使用支持Flash的浏览器
-            </div>
-        </object>
+        <!-- 备用Flash容器 -->
+        <div id="legacy-flash" style="display:none">
+            <object data="game.swf" type="application/x-shockwave-flash" 
+                   width="800" height="600">
+                <param name="movie" value="game.swf">
+                <div class="error-box">
+                    ❌ 需要Flash Player支持，请使用兼容浏览器访问
+                </div>
+            </object>
+        </div>
     </div>
 
     <!-- Ruffle 播放器 -->
-    <script src="https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@0.2.0/ruffle.js"></script>
+    <script src="https://unpkg.com/@ruffle-rs/ruffle@0.2.0/ruffle.js"></script>
     <script>
-        // 加载进度模拟
-        let progress = 0;
-        const progressBar = document.querySelector('.progress-fill');
-        const progressText = document.getElementById('progress');
-
-        // Ruffle 配置
-        window.RufflePlayer = {
-            config: {
-                autoplay: "on",
-                unmuteOverlay: "hidden",
-                preloader: {
-                    maxBufferLength: 15,  // 预加载时长
-                    backoff: 1.5         // 缓冲策略
-                },
-                polyfills: true,         // 自动填充缺失API
-                warnOnUnsupportedContent: false
+        // 增强型错误处理系统
+        class Loader {
+            constructor() {
+                this.retryCount = 0;
+                this.maxRetries = 2;
+                this.init();
             }
-        };
 
-        // 初始化播放器
-        async function initPlayer() {
-            try {
-                const ruffle = window.RufflePlayer.newest();
-                const player = ruffle.createPlayer();
-                const container = document.getElementById("game-container");
+            async init() {
+                try {
+                    await this.verifyDependencies();
+                    await this.initRuffle();
+                    this.bindEvents();
+                } catch (error) {
+                    this.handleError(error);
+                }
+            }
+
+            async verifyDependencies() {
+                // 检查关键资源是否存在
+                const checkResources = [
+                    fetch('game.swf').catch(() => { throw new Error('SWF文件缺失') }),
+                    fetch('https://unpkg.com/@ruffle-rs/ruffle@0.2.0/ruffle.wasm')
+                        .catch(() => { throw new Error('Ruffle核心组件加载失败') })
+                ];
+                await Promise.all(checkResources);
+            }
+
+            async initRuffle() {
+                window.RufflePlayer = window.RufflePlayer || {};
+                window.RufflePlayer.config = {
+                    autoplay: 'on',
+                    unmuteOverlay: 'hidden',
+                    preloader: {
+                        maxBufferLength: 15,
+                        backoff: 1.5
+                    },
+                    polyfills: true,
+                    warnOnUnsupportedContent: false,
+                    publicPath: 'https://unpkg.com/@ruffle-rs/ruffle@0.2.0/' // 显式指定资源路径
+                };
+
+                this.ruffle = window.RufflePlayer.newest();
+                this.player = this.ruffle.createPlayer();
+                document.getElementById("game-container").appendChild(this.player);
                 
-                // 显示真实加载进度
-                player.addEventListener("progress", (event) => {
-                    const percent = Math.floor(event.detail * 100);
-                    updateProgress(percent);
+                // 真实进度监控
+                this.player.addEventListener("progress", (e) => {
+                    const percent = Math.min(95, Math.floor(e.detail * 100));
+                    this.updateProgress(percent);
                 });
 
-                container.appendChild(player);
-                await player.load("game.swf");
-                
-                // 加载完成
-                document.getElementById("loading").style.display = "none";
-                container.style.display = "block";
-            } catch (error) {
-                showError(error);
-                document.getElementById("legacy-flash").style.display = "block";
+                await this.player.load("game.swf");
+                this.onLoadComplete();
+            }
+
+            bindEvents() {
+                this.player.addEventListener("error", (e) => {
+                    throw new Error(`播放错误: ${e.detail.error}`);
+                });
+            }
+
+            updateProgress(percent) {
+                document.getElementById("progress-bar").style.width = `${percent}%`;
+                document.getElementById("progress-text").textContent = `${percent}%`;
+            }
+
+            onLoadComplete() {
+                document.getElementById("loading").style.opacity = "0";
+                document.getElementById("game-container").style.display = "block";
+                setTimeout(() => {
+                    document.getElementById("loading").style.display = "none";
+                }, 300);
+            }
+
+            handleError(error) {
+                console.error(`[Loader] ${error.message}`);
+                if (this.retryCount < this.maxRetries) {
+                    this.retryCount++;
+                    this.showError(`正在尝试重新加载 (${this.retryCount}/${this.maxRetries})...`);
+                    setTimeout(() => this.init(), 2000);
+                } else {
+                    this.showError(`最终加载失败: ${error.message}`, true);
+                    document.getElementById("legacy-flash").style.display = "block";
+                }
+            }
+
+            showError(message, showRetry = false) {
+                const errorHTML = `
+                    <div class="error-box">
+                        <strong>⚠️ 加载遇到问题</strong>
+                        <p>${message}</p>
+                        ${showRetry ? `<button class="retry-button" onclick="location.reload()">点击重试</button>` : ''}
+                    </div>
+                `;
+                document.getElementById("loading").innerHTML = errorHTML;
             }
         }
 
-        // 更新进度条
-        function updateProgress(percent) {
-            progressBar.style.width = `${percent}%`;
-            progressText.textContent = `${percent}%`;
-        }
-
-        // 错误处理
-        function showError(error) {
-            const errorDiv = document.createElement("div");
-            errorDiv.className = "error-message";
-            errorDiv.innerHTML = `
-                <strong>加载失败！</strong><br>
-                错误信息: ${error.message}<br>
-                <button onclick="location.reload()">点击重试</button>
-            `;
-            document.getElementById("loading").replaceWith(errorDiv);
-        }
-
-        // 启动加载
-        window.addEventListener("DOMContentLoaded", initPlayer);
+        // 初始化加载器
+        window.addEventListener('DOMContentLoaded', () => {
+            new Loader();
+        });
     </script>
 </body>
 </html>
