@@ -16,6 +16,7 @@
         #ruffle-container {
             width: 640px; /* 设置适当的宽度 */
             height: 480px; /* 设置适当的高度 */
+            position: relative;
         }
     </style>
 </head>
@@ -27,6 +28,12 @@
 <script>
     // 创建一个新的Ruffle实例
     const ruffle = window.RufflePlayer.newest();
+
+    if (!ruffle) {
+        console.error("Failed to load Ruffle player.");
+        document.getElementById("ruffle-container").innerText = "Failed to load Ruffle player.";
+        return;
+    }
 
     // 获取容器元素
     const container = document.getElementById("ruffle-container");
