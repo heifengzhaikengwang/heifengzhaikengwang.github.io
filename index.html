@@ -1,53 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Play SWF Game with Ruffle</title>
+    <title>游戏播放器</title>
     <style>
         body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
+            font-family: Arial, sans-serif;
+            text-align: center;
             background-color: #f0f0f0;
+            padding: 20px;
         }
-        #ruffle-container {
-            width: 640px; /* 设置适当的宽度 */
-            height: 480px; /* 设置适当的高度 */
-            position: relative;
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #game-container {
+            margin: 20px 0;
         }
     </style>
 </head>
 <body>
-
-<div id="ruffle-container"></div>
-
-<script src="https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@latest/dist/web/ruffle.js"></script>
-<script>
-    // 创建一个新的Ruffle实例
-    const ruffle = window.RufflePlayer.newest();
-
-    if (!ruffle) {
-        console.error("Failed to load Ruffle player.");
-        document.getElementById("ruffle-container").innerText = "Failed to load Ruffle player.";
-        return;
-    }
-
-    // 获取容器元素
-    const container = document.getElementById("ruffle-container");
-
-    // 将Ruffle实例附加到容器上
-    const player = ruffle.create_player();
-    container.appendChild(player);
-
-    // 加载SWF文件
-    player.load("game.swf");
-</script>
-
+    <div class="container">
+        <h1>游戏播放器</h1>
+        
+        <div id="game-container"></div>
+        
+        <p>使用Ruffle模拟器播放SWF文件</p>
+    </div>
+    
+    <!-- 引入Ruffle -->
+    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+    <script>
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.addEventListener("DOMContentLoaded", () => {
+            const ruffle = window.RufflePlayer.newest();
+            const player = ruffle.createPlayer();
+            const container = document.getElementById("game-container");
+            container.appendChild(player);
+            player.load("game.swf");
+        });
+    </script>
 </body>
 </html>
-
-
-
