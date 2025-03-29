@@ -1,46 +1,46 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SWF Player</title>
-    <!-- 从官方CDN加载最新版Ruffle -->
-    <script src="https://unpkg.com/@ruffle-rs/ruffle@latest"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Play SWF Game with Ruffle</title>
     <style>
-        #player-container {
-            width: 100vw;
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
             height: 100vh;
             margin: 0;
-            background: #000;
+            background-color: #f0f0f0;
+        }
+        #ruffle-container {
+            width: 640px; /* 设置适当的宽度 */
+            height: 480px; /* 设置适当的高度 */
         }
     </style>
 </head>
 <body>
-    <div id="player-container"></div>
 
-    <script>
-        window.RufflePlayer = window.RufflePlayer || {};
-        window.addEventListener("DOMContentLoaded", () => {
-            const player = window.RufflePlayer.newest();
-            const ruffle = player.createPlayer();
-            const container = document.getElementById("player-container");
-            
-            // 配置自动适配官方CDN资源
-            ruffle.config = {
-                publicPath: "https://unpkg.com/@ruffle-rs/ruffle@latest/",
-                autoplay: "auto",
-                unmuteOverlay: "hidden",
-                openInNewTab: false
-            };
+<div id="ruffle-container"></div>
 
-            container.appendChild(ruffle);
-            ruffle.load("game.swf")
-                .then(() => {
-                    console.log("SWF loaded from Ruffle CDN");
-                })
-                .catch((e) => {
-                    console.error("Error:", e);
-                    container.innerHTML = `<p>加载失败，请检查网络连接或<a href="game.swf">下载文件</a></p>`;
-                });
-        });
-    </script>
+<script src="https://cdn.jsdelivr.net/npm/@ruffle-rs/ruffle@latest/dist/web/ruffle.js"></script>
+<script>
+    // 创建一个新的Ruffle实例
+    const ruffle = window.RufflePlayer.newest();
+
+    // 获取容器元素
+    const container = document.getElementById("ruffle-container");
+
+    // 将Ruffle实例附加到容器上
+    const player = ruffle.create_player();
+    container.appendChild(player);
+
+    // 加载SWF文件
+    player.load("game.swf");
+</script>
+
 </body>
 </html>
+
+
+
