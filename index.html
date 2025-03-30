@@ -3,65 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Flash游戏加载 - heifengzhaikengwang</title>
+    <title>牧云老师的地震逃生小游戏</title>
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 20px 0;
             background: #f0f0f0;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 {
+            color: #2c3e50;
+            margin: 20px 0;
+            text-align: center;
         }
         #ruffle-container {
-            width: 800px;
-            height: 600px;
-            max-width: 100%;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            background: white;
+            /* 16:9 比例容器 */
+            width: 90vw;
+            height: calc(90vw * 9 / 16);
+            max-width: 1600px;
+            max-height: calc(1600px * 9 / 16);
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            background: #fff;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        @media (max-aspect-ratio: 16/9) {
+            #ruffle-container {
+                /* 竖屏适配 */
+                width: calc(90vh * 16 / 9);
+                height: 90vh;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Flash游戏加载器</h1>
+    <h1>牧云老师的地震逃生小游戏</h1>
     <div id="ruffle-container"></div>
 
-    <!-- 引入Ruffle播放器 -->
     <script src="ruffle.js"></script>
     <script>
         window.RufflePlayer = window.RufflePlayer || {};
         window.RufflePlayer.config = {
-            // 基础配置
             "publicPath": "./",
-            "polyfills": true,
-            
-            // 播放器配置
+            "scale": "noborder",  // 无黑边填充模式
+            "wmode": "direct",
             "autoplay": "auto",
             "unmuteOverlay": "hidden",
-            "backgroundColor": "#FFFFFF",
-            
-            // 缩放配置
-            "scale": "showAll",
-            "wmode": "direct",
+            "backgroundColor": "#FFFFFF"
         };
 
-        // 加载完成后初始化
         window.addEventListener("DOMContentLoaded", () => {
             const container = document.getElementById("ruffle-container");
             const ruffle = window.RufflePlayer.newest();
             const player = ruffle.createPlayer();
-            container.appendChild(player);
             
-            // 加载SWF文件
+            // 自动适配容器尺寸
+            player.style.width = "100%";
+            player.style.height = "100%";
+            
+            container.appendChild(player);
+
             player.load({
                 url: "game.swf",
-                allowScriptAccess: false,
-                parameters: {}
+                allowScriptAccess: false
             }).catch(error => {
-                console.error("加载SWF文件失败:", error);
-                container.innerHTML = "<p>无法加载游戏文件，请检查控制台日志。</p>";
+                container.innerHTML = `<p style="color:red;padding:20px">游戏加载失败，请尝试刷新页面或检查网络连接</p>`;
+                console.error("Ruffle加载错误:", error);
             });
+        });
+
+        // 窗口大小变化时保持比例
+        window.addEventListener("resize", () => {
+            const container = document.getElementById("ruffle-container");
+            container.style.transition = "all 0.3s ease";
         });
     </script>
 </body>
