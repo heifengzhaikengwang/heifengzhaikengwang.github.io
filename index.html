@@ -3,207 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SWF播放器 - 稳定版</title>
+    <title>Flash游戏加载 - heifengzhaikengwang</title>
     <style>
-        :root {
-            --primary: #2196F3;
-            --error: #ff4444;
-            --bg: #f5f5f5;
-        }
-
         body {
-            font-family: system-ui, sans-serif;
             margin: 0;
             padding: 20px;
-            background: var(--bg);
-            min-height: 100vh;
+            background: #f0f0f0;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
         }
-
-        .container {
-            width: min(100%, 800px);
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-            margin-top: 20px;
-        }
-
-        #status {
-            text-align: center;
-            padding: 20px;
-            transition: opacity 0.3s;
-        }
-
-        .loader {
-            width: 80%;
-            height: 4px;
-            background: #eee;
-            border-radius: 2px;
-            margin: 15px auto;
-            overflow: hidden;
-        }
-
-        #progress {
-            width: 0%;
-            height: 100%;
-            background: var(--primary);
-            transition: width 0.3s ease;
-        }
-
-        .error {
-            color: var(--error);
-            padding: 15px;
-            background: #ffebee;
-            border-radius: 6px;
-            margin: 15px 0;
-        }
-
-        #game {
-            width: 100%;
+        #ruffle-container {
+            width: 800px;
             height: 600px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            display: none;
+            max-width: 100%;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            background: white;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>SWF游戏播放器</h1>
-        
-        <!-- 加载状态 -->
-        <div id="status">
-            <div class="loader">
-                <div id="progress"></div>
-            </div>
-            <p id="status-text">正在初始化播放器...</p>
-        </div>
+    <h1>Flash游戏加载器</h1>
+    <div id="ruffle-container"></div>
 
-        <!-- 游戏容器 -->
-        <div id="game"></div>
-
-        <!-- 备用Flash方案 -->
-        <div id="fallback" style="display:none">
-            <object data="game.swf" type="application/x-shockwave-flash" 
-                   width="800" height="600">
-                <param name="movie" value="game.swf">
-                <div class="error">
-                    ❌ 需要Flash支持，推荐使用<a href="https://ruffle.rs" target="_blank">Ruffle桌面版</a>
-                </div>
-            </object>
-        </div>
-    </div>
-
-    <!-- Ruffle 核心库 -->
-    <script src="https://unpkg.com/@ruffle-rs/ruffle@0.2.0/ruffle.js"></script>
+    <!-- 引入Ruffle播放器 -->
+    <script src="ruffle.js"></script>
     <script>
-        // 强化配置
-        window.RufflePlayer = {
-            config: {
-                publicPath: "https://unpkg.com/@ruffle-rs/ruffle@0.2.0/",
-                autoplay: "on",
-                polyfills: true,
-                warnOnUnsupportedContent: false,
-                preloader: {
-                    maxBufferLength: 10,
-                    backoff: 2
-                }
-            }
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.RufflePlayer.config = {
+            // 基础配置
+            "publicPath": "./",
+            "polyfills": true,
+            
+            // 播放器配置
+            "autoplay": "auto",
+            "unmuteOverlay": "hidden",
+            "backgroundColor": "#FFFFFF",
+            
+            // 缩放配置
+            "scale": "showAll",
+            "wmode": "direct",
         };
 
-        // 智能加载器
-        class RuffleLoader {
-            constructor() {
-                this.retries = 0;
-                this.maxRetries = 3;
-                this.init();
-            }
-
-            async init() {
-                try {
-                    await this.checkDependencies();
-                    await this.setupPlayer();
-                } catch (err) {
-                    this.handleError(err);
-                }
-            }
-
-            async checkDependencies() {
-                // 验证关键资源
-                const checks = [
-                    this.testResource('game.swf', 'SWF文件'),
-                    this.testResource(window.RufflePlayer.config.publicPath + 'ruffle.wasm', 'Ruffle核心')
-                ];
-                await Promise.all(checks);
-            }
-
-            async testResource(url, name) {
-                const res = await fetch(url, { method: 'HEAD' });
-                if (!res.ok) throw new Error(`${name}不可用 (${res.status})`);
-            }
-
-            async setupPlayer() {
-                const ruffle = window.RufflePlayer.newest();
-                this.player = ruffle.createPlayer();
-                
-                // 事件绑定
-                this.player.addEventListener("progress", e => {
-                    const percent = Math.floor(e.detail * 100);
-                    this.updateProgress(Math.min(95, percent));
-                });
-
-                this.player.addEventListener("loadedmetadata", () => {
-                    this.completeLoading();
-                });
-
-                document.getElementById("game").appendChild(this.player);
-                await this.player.load("game.swf");
-            }
-
-            updateProgress(percent) {
-                document.getElementById("progress").style.width = `${percent}%`;
-                document.getElementById("status-text").textContent = 
-                    `加载中 ${percent}%`;
-            }
-
-            completeLoading() {
-                document.getElementById("status").style.opacity = 0;
-                document.getElementById("game").style.display = "block";
-                setTimeout(() => {
-                    document.getElementById("status").style.display = "none";
-                }, 300);
-            }
-
-            handleError(error) {
-                console.error(`[Loader] ${error.message}`);
-                
-                if (this.retries < this.maxRetries) {
-                    this.retries++;
-                    this.showMessage(`正在尝试第 ${this.retries} 次重试...`, false);
-                    setTimeout(() => this.init(), 2000 * this.retries);
-                } else {
-                    this.showMessage(`加载失败: ${error.message}`, true);
-                    document.getElementById("fallback").style.display = "block";
-                }
-            }
-
-            showMessage(text, isError) {
-                const status = document.getElementById("status");
-                status.innerHTML = `
-                    <div class="${isError ? 'error' : ''}">
-                        ${text}
-                        ${isError ? '<button onclick="location.reload()" style="margin-top:10px">重试</button>' : ''}
-                    </div>
-                `;
-            }
-        }
-
-        // 启动加载
-        window.addEventListener('DOMContentLoaded', () => {
-            new RuffleLoader();
+        // 加载完成后初始化
+        window.addEventListener("DOMContentLoaded", () => {
+            const container = document.getElementById("ruffle-container");
+            const ruffle = window.RufflePlayer.newest();
+            const player = ruffle.createPlayer();
+            container.appendChild(player);
+            
+            // 加载SWF文件
+            player.load({
+                url: "game.swf",
+                allowScriptAccess: false,
+                parameters: {}
+            }).catch(error => {
+                console.error("加载SWF文件失败:", error);
+                container.innerHTML = "<p>无法加载游戏文件，请检查控制台日志。</p>";
+            });
         });
     </script>
 </body>
